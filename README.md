@@ -105,9 +105,9 @@ danawa-scraper/
 | 단계 | 상태 | 비고 |
 |------|------|------|
 | Step 1 다나와 크롤링 | ✅ 정상 | KQ65QNH70AFXKR 등 확인 |
-| Step 2 삼성 공식몰 검증 | ⚠️ UNVERIFIED | 셀렉터 업데이트 필요 |
+| Step 2 삼성 공식몰 검증 | ✅ 정상 | 셀렉터 업데이트 완료 |
 | Step 3 100점 채점 | ✅ 정상 | 레이더 차트 표시 |
-| Step 4 경쟁사 탐색 | ⚠️ 0개 | 다나와 셀렉터 업데이트 필요 |
+| Step 4 경쟁사 탐색 | ✅ 정상 | 셀렉터 업데이트 완료 |
 | Step 5 유사도 랭킹 | ✅ 정상 (데이터 있을 때) | |
 | Step 6 경쟁사 검증 | ✅ 정상 (데이터 있을 때) | |
 | CSV 배치 처리 | ✅ 정상 | ETA·체크포인트·재개 |
@@ -121,8 +121,8 @@ danawa-scraper/
 
 | # | 과제 | 파일 | 세부 내용 |
 |---|------|------|----------|
-| T-1 | 다나와 경쟁사 목록 셀렉터 업데이트 | `selectors/danawa.json` | `productListInit.php` 페이지 제품 카드 CSS 셀렉터 재확인 |
-| T-2 | 삼성 공식몰 셀렉터 업데이트 | `selectors/samsung.json` | `samsung.com/sec` 모델 검색 결과 + 스펙 테이블 셀렉터 재확인 |
+| T-1 | 셀렉터 유지보수 자동화 리서치 | `selectors/` | ScrapeGraphAI/AgentQL 도입 검토 |
+| T-2 | LLM 기반 크롤링 에이전트 PoC | `browser-use` | Browser-Use 기반 자율 탐색 모델링 |
 
 ### 🟡 우선순위 중간
 

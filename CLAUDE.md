@@ -334,8 +334,8 @@ uvicorn main:app --reload --port 8000
 - [x] 전역 예외 핸들러 + `/api/ping` 헬스체크 엔드포인트 추가
 
 ### 잔여 과제 (셀렉터 업데이트)
-- [ ] **삼성 공식몰 셀렉터** — `samsung.com/sec` HTML 구조 변경으로 모델 검색 실패 (UNVERIFIED fallback 중)
-- [ ] **다나와 경쟁사 목록 셀렉터** — `danawa.com` 제품 목록 페이지 HTML 구조 변경으로 경쟁사 0개
+- [x] **삼성 공식몰 셀렉터** — `samsung.com/sec` HTML 구조 변경 대응 완료 (2026-04-16)
+- [x] **다나와 경쟁사 목록 셀렉터** — `danawa.com` 제품 목록 페이지 HTML 구조 변경 대응 완료 (2026-04-16)
 - [x] 레이더 차트 (SVG) — 그리드 레벨 라벨, 포인트별 점수 라벨, SVG `<title>` 툴팁, 애니메이션
 - [x] 로딩 UX (단계별 진행 표시기) — ✓ 완료 표시, 그린 그래디언트 100%, connector .done
 - [x] pytest 자동화 테스트 — 117 passed, 5 skipped (E2E), 0 failed

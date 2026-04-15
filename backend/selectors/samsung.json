@@ -3,6 +3,8 @@
   "search_url": "https://www.samsung.com/sec/search/?searchvalue={model}",
   "selectors": {
     "search_result": [
+      ".sc-g-product-card__info-title a",
+      ".sc-product-card__title a",
       ".result-item .result-name a",
       ".search-results-list .result-item a",
       ".product-card a",
@@ -10,6 +12,8 @@
       ".search-result-item a"
     ],
     "spec_section_trigger": [
+      "#acompGoodsFeatures + a",
+      ".revamp-scrollspy-link:nth-of-type(2)",
       "a[href='#specification']",
       "#specification",
       ".tab-menu a[data-section='specification']",
@@ -17,6 +21,7 @@
       "[data-panel='specification']"
     ],
     "spec_label": [
+      ".v-spec-details__label",
       ".specification-title",
       ".spec-name",
       ".specification-item .title",
@@ -24,6 +29,7 @@
       "dt"
     ],
     "spec_value": [
+      ".v-spec-details__value",
       ".specification-value",
       ".spec-value",
       ".specification-item .desc",
