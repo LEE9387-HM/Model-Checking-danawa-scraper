@@ -271,7 +271,7 @@ uvicorn main:app --reload --port 8000
 
 ## ✅ 진척 현황
 
-> 마지막 업데이트: 2026-04-15
+> 마지막 업데이트: 2026-04-16
 
 ### Phase 1 — 프로젝트 셋업 + TV 카테고리 파이프라인 ✅ 완료
 - [x] 프로젝트 폴더 구조 생성
@@ -324,6 +324,18 @@ uvicorn main:app --reload --port 8000
 - [x] 배치 UI 개선 — 현재 처리 모델명 pulse 애니메이션, ETA 표시, 에러 카운트/목록 토글
 
 ### Phase 7 — UI 폴리싱 + 최종 테스트 ✅ 완료
+
+### 버그픽스 (2026-04-16) ✅ 완료
+- [x] app.js `.then()` 콜백 `async` 누락 문법 오류 → 검색 버튼 완전 무반응 현상 수정
+- [x] Windows Python 3.13 `asyncio.SelectorEventLoop` + Playwright `NotImplementedError` 해결
+  - crawler.py / base_adapter.py: `ProactorEventLoop` 전용 스레드에서 Playwright 실행
+- [x] `app.mount("/", StaticFiles(...))` 가 API 라우트를 가로채는 문제 → catch-all `GET /{path}` 라우트로 교체
+- [x] 에러 응답 파싱 개선 (JSON/text 모두 처리, body stream 이중 소비 버그 수정)
+- [x] 전역 예외 핸들러 + `/api/ping` 헬스체크 엔드포인트 추가
+
+### 잔여 과제 (셀렉터 업데이트)
+- [ ] **삼성 공식몰 셀렉터** — `samsung.com/sec` HTML 구조 변경으로 모델 검색 실패 (UNVERIFIED fallback 중)
+- [ ] **다나와 경쟁사 목록 셀렉터** — `danawa.com` 제품 목록 페이지 HTML 구조 변경으로 경쟁사 0개
 - [x] 레이더 차트 (SVG) — 그리드 레벨 라벨, 포인트별 점수 라벨, SVG `<title>` 툴팁, 애니메이션
 - [x] 로딩 UX (단계별 진행 표시기) — ✓ 완료 표시, 그린 그래디언트 100%, connector .done
 - [x] pytest 자동화 테스트 — 117 passed, 5 skipped (E2E), 0 failed
@@ -364,3 +376,8 @@ uvicorn main:app --reload --port 8000
 | 2026-04-16 | Phase 7 | pytest 자동화 테스트 완성 — 117 passed, 5 skipped (E2E), 0 failed |
 | 2026-04-16 | Phase 7 | verifier.py 어댑터 모듈 레벨 import로 개선 (mock 테스트 호환성) |
 | 2026-04-16 | Phase 7 | .claude/launch.json — dev 서버 설정 저장 |
+| 2026-04-16 | 버그픽스 | app.js .then() async 누락 문법 오류 수정 → 검색 버튼 동작 복구 |
+| 2026-04-16 | 버그픽스 | Windows asyncio.SelectorEventLoop + Playwright subprocess NotImplementedError 해결 |
+| 2026-04-16 | 버그픽스 | app.mount("/", StaticFiles) → catch-all 라우트 교체 (API 라우트 우선순위 복구) |
+| 2026-04-16 | 버그픽스 | base_adapter.py ProactorEventLoop 스레드 fix 적용 (Samsung/LG/Naver 어댑터 공통) |
+| 2026-04-16 | E2E 확인 | 실서버 파이프라인 Step 1~5 전 구간 200 OK 확인 (KQ65QNH70AFXKR, KQ55SF8EAEXKR) |
