@@ -311,9 +311,11 @@ uvicorn main:app --reload --port 8000
 - [x] CompetitorVerifyRequest에 samsung_spec 추가
 - [x] 검증 상태별 테이블 행 색조 (CORRECTED 노랑, VERIFIED 초록)
 
-### Phase 5 — 11개 카테고리 확장
-- [ ] 나머지 10개 룰셋 JSON (refrigerator 외 9개)
-- [ ] spec_parser.py 카테고리별 파서 확장
+### Phase 5 — 11개 카테고리 확장 ✅ 완료
+- [x] rules/ 11개 룰셋 JSON 이미 완비 (weight 합 1.00 전수 확인)
+- [x] spec_parser.py — 9개 파서 추가 (washer, dryer, air_conditioner, dishwasher, air_purifier, vacuum, robot_vacuum, microwave, monitor)
+- [x] _meta() 공통 헬퍼로 메타 스펙 중복 제거
+- [x] 11개 카테고리 전수 검증: grading_spec 키 완전 매핑 확인
 
 ### Phase 6 — CSV 배치 처리 시스템
 - [ ] batch_processor.py + asyncio.Queue + 체크포인트
@@ -348,3 +350,4 @@ uvicorn main:app --reload --port 8000
 | 2026-04-16 | Phase 4 | lg_adapter.py, naver_store_adapter.py 구현 완료 |
 | 2026-04-16 | Phase 4 | selectors/lg.json, selectors/naver.json 다중 셀렉터 배열 구조로 개선 |
 | 2026-04-16 | Phase 4 | /api/competitors/verify 재채점+재랭킹 적용, 검증 상태별 행 색조 추가 |
+| 2026-04-16 | Phase 5 | spec_parser.py — 9개 카테고리 파서 추가, 11개 전수 검증 OK |
