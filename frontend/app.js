@@ -2,7 +2,7 @@
    app.js — 단건 분석 + CSV 배치 처리 UI 로직
    ═══════════════════════════════════════════════ */
 
-const API = '';  // 같은 오리진에서 서빙
+const API = '';  // 같은 오리진에서 서빙 (uvicorn 포트와 동일)
 
 /* ─── 탭 전환 ─────────────────────────────────── */
 function switchTab(name) {
@@ -288,7 +288,13 @@ async function startAnalysis() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model_name: modelName }),
-    }).then(r => r.ok ? r.json() : Promise.reject(await r.json()));
+    }).then(async r => {
+      if (r.ok) return r.json();
+      const text = await r.text();
+      let errBody;
+      try { errBody = JSON.parse(text); } catch { errBody = { detail: text }; }
+      return Promise.reject(errBody);
+    });
 
     // Step 2: 공식몰 검증
     setProgress('Step 2/7: 삼성 공식몰 교차검증 중…', 22, 2);
@@ -300,7 +306,13 @@ async function startAnalysis() {
         category: searchRes.category || 'tv',
         raw_spec: searchRes.raw_spec,
       }),
-    }).then(r => r.ok ? r.json() : Promise.reject(await r.json()));
+    }).then(async r => {
+      if (r.ok) return r.json();
+      const text = await r.text();
+      let errBody;
+      try { errBody = JSON.parse(text); } catch { errBody = { detail: text }; }
+      return Promise.reject(errBody);
+    });
 
     const finalSpec = verifyRes.corrected_spec;
     const category = searchRes.category || 'tv';
@@ -311,7 +323,13 @@ async function startAnalysis() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category, spec: finalSpec }),
-    }).then(r => r.ok ? r.json() : Promise.reject(await r.json()));
+    }).then(async r => {
+      if (r.ok) return r.json();
+      const text = await r.text();
+      let errBody;
+      try { errBody = JSON.parse(text); } catch { errBody = { detail: text }; }
+      return Promise.reject(errBody);
+    });
 
     // ─ 삼성 결과 카드 표시 ─
     document.getElementById('result-card').classList.remove('hidden');
@@ -355,7 +373,13 @@ async function startAnalysis() {
           category_url: '',   // 비워두면 서버에서 자동 생성
           release_year: releaseYear,
         }),
-      }).then(r => r.ok ? r.json() : Promise.reject(await r.json()));
+      }).then(async r => {
+      if (r.ok) return r.json();
+      const text = await r.text();
+      let errBody;
+      try { errBody = JSON.parse(text); } catch { errBody = { detail: text }; }
+      return Promise.reject(errBody);
+    });
     } catch (e) {
       console.warn('[경쟁사 탐색 실패, 계속 진행]', e);
     }
@@ -376,7 +400,13 @@ async function startAnalysis() {
             competitors: verifiedComps,
             samsung_spec: finalSpec,
           }),
-        }).then(r => r.ok ? r.json() : Promise.reject(await r.json()));
+        }).then(async r => {
+      if (r.ok) return r.json();
+      const text = await r.text();
+      let errBody;
+      try { errBody = JSON.parse(text); } catch { errBody = { detail: text }; }
+      return Promise.reject(errBody);
+    });
         verifiedComps = compVerifyRes.competitors;
         if (compVerifyRes.rescored) {
           showToast('공식몰 스펙 보정 후 재채점/재랭킹이 적용되었습니다.');

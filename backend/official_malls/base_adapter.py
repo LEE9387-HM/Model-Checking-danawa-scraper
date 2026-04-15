@@ -4,6 +4,7 @@ base_adapter.py — 공식몰 어댑터 추상 기본 클래스
 """
 import asyncio
 import random
+import sys
 from abc import ABC, abstractmethod
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
@@ -79,9 +80,21 @@ class BaseAdapter(ABC):
     # ─── 공통 진입점 ────────────────────────────────────────────────────────
 
     async def fetch(self, model_name: str) -> dict[str, str]:
-        """외부에서 호출하는 진입점. 에러 발생 시 빈 dict 반환."""
-        try:
-            return await self.search_and_parse(model_name)
-        except Exception as e:
-            print(f"[{self.ADAPTER_NAME}] fetch 오류: {e}")
-            return {}
+        """Windows ProactorEventLoop 스레드에서 실행. 에러 발생 시 빈 dict 반환."""
+        adapter = self
+
+        def _run():
+            if sys.platform == "win32":
+                loop = asyncio.ProactorEventLoop()
+            else:
+                loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(adapter.search_and_parse(model_name))
+            except Exception as e:
+                print(f"[{adapter.ADAPTER_NAME}] fetch 오류: {e}")
+                return {}
+            finally:
+                loop.close()
+
+        return await asyncio.to_thread(_run)

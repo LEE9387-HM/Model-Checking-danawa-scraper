@@ -6,8 +6,22 @@ import asyncio
 import json
 import random
 import re
+import sys
 from pathlib import Path
 from typing import Any
+
+
+def _run_in_proactor(coro) -> Any:
+    """Windows asyncio subprocess 호환: 새 ProactorEventLoop 스레드에서 코루틴 실행."""
+    if sys.platform == "win32":
+        loop = asyncio.ProactorEventLoop()
+    else:
+        loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 from playwright.async_api import async_playwright, Page, Browser, BrowserContext
 
@@ -172,6 +186,11 @@ def _passes_year_filter(release_year: int | None, samsung_year: int | None, wind
 # ─── 공개 API ────────────────────────────────────────────────────────────────
 
 async def fetch_model_spec(model_name: str) -> dict[str, Any]:
+    """Windows ProactorEventLoop 스레드에서 실제 크롤링 실행."""
+    return await asyncio.to_thread(_run_in_proactor, _fetch_model_spec_impl(model_name))
+
+
+async def _fetch_model_spec_impl(model_name: str) -> dict[str, Any]:
     """
     다나와에서 단일 모델의 스펙을 크롤링.
 
@@ -247,6 +266,25 @@ async def fetch_model_spec(model_name: str) -> dict[str, Any]:
 
 
 async def fetch_competitors(
+    category_url: str,
+    primary_spec_filter: dict[str, Any],
+    exclude_brand: str = "삼성전자",
+    max_count: int = 20,
+    samsung_release_year: int | None = None,
+    year_window: int = 2,
+    delay_between_sec: float = 3.0,
+) -> list[dict[str, Any]]:
+    """Windows ProactorEventLoop 스레드에서 실제 크롤링 실행."""
+    return await asyncio.to_thread(
+        _run_in_proactor,
+        _fetch_competitors_impl(
+            category_url, primary_spec_filter, exclude_brand,
+            max_count, samsung_release_year, year_window, delay_between_sec,
+        ),
+    )
+
+
+async def _fetch_competitors_impl(
     category_url: str,
     primary_spec_filter: dict[str, Any],
     exclude_brand: str = "삼성전자",

@@ -2,6 +2,13 @@
 main.py — FastAPI 백엔드 서버
 7단계 파이프라인 API + CSV 배치 처리 API + 정적 프론트엔드 서빙
 """
+import asyncio
+import sys
+
+# Windows에서 Playwright subprocess 실행을 위해 ProactorEventLoop 필수
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 import csv
 import io
 import json
@@ -9,7 +16,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -82,14 +89,33 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {exc}"},
+    )
+
+
 # ─── 단건 분석 API ───────────────────────────────────────────────────────────
 
 @app.post("/api/search", summary="Step 1: 다나와 모델 검색 + 스펙 크롤링")
 async def api_search(req: SearchRequest):
-    result = await fetch_model_spec(req.model_name)
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    return result
+    import traceback
+    print(f"[DEBUG] /api/search 요청: {req.model_name}", flush=True)
+    try:
+        result = await fetch_model_spec(req.model_name)
+        print(f"[DEBUG] fetch_model_spec 결과: {list(result.keys())}", flush=True)
+        if "error" in result:
+            raise HTTPException(status_code=404, detail=result["error"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
 
 
 @app.post("/api/verify", summary="Step 2: 삼성 공식몰 교차검증")
@@ -285,10 +311,12 @@ async def batch_cancel(job_id: str):
     return {"message": "취소 요청 완료", "job_id": job_id}
 
 
-# ─── 프론트엔드 정적 파일 서빙 ──────────────────────────────────────────────
+# ─── 테스트 ─────────────────────────────────────────────────────────────────
 
-if FRONTEND_DIR.exists():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
+@app.get("/api/ping")
+async def ping():
+    print("[DEBUG] /api/ping 호출됨", flush=True)
+    return {"pong": True}
 
 
 # ─── 헬스체크 ────────────────────────────────────────────────────────────────
@@ -296,6 +324,21 @@ if FRONTEND_DIR.exists():
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "1.0.0"}
+
+
+# ─── 프론트엔드 정적 파일 서빙 (catch-all — 반드시 마지막에) ────────────────
+
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    """API 경로에 매칭되지 않은 모든 GET 요청 → 정적 파일 or index.html"""
+    target = FRONTEND_DIR / full_path
+    if target.is_file():
+        return FileResponse(str(target))
+    # SPA fallback
+    index = FRONTEND_DIR / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
+    raise HTTPException(status_code=404, detail="Not found")
 
 
 if __name__ == "__main__":
