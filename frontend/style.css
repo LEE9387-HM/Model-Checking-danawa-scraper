@@ -411,7 +411,43 @@ body {
 .batch-status-chip {
   padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
 }
-.batch-info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.batch-info-row {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+  flex-wrap: wrap; gap: 6px;
+}
+.batch-counts { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary); }
+.batch-sep { color: var(--text-muted); }
+.batch-error-count { color: var(--accent-danger); font-size: 0.8rem; font-weight: 600; }
+.batch-eta { color: var(--accent-secondary); font-size: 0.8rem; }
+.batch-current-model {
+  font-size: 0.8rem; color: var(--accent-light);
+  padding: 4px 0; margin-top: 4px;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* 에러 섹션 */
+.batch-error-section { margin-top: 14px; }
+.batch-error-toggle {
+  background: none; border: 1px solid rgba(239,68,68,0.25);
+  color: var(--accent-danger); border-radius: var(--radius-sm);
+  padding: 5px 12px; font-size: 0.78rem; cursor: pointer;
+  transition: var(--transition);
+}
+.batch-error-toggle:hover { background: rgba(239,68,68,0.08); }
+.batch-error-list {
+  margin-top: 8px;
+  background: rgba(239,68,68,0.05);
+  border: 1px solid rgba(239,68,68,0.15);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 200px; overflow-y: auto;
+}
+.batch-error-item { display: flex; gap: 10px; align-items: baseline; font-size: 0.78rem; }
+.batch-error-model { color: var(--text-primary); font-weight: 600; min-width: 140px; flex-shrink: 0; }
+.batch-error-msg { color: var(--accent-danger); opacity: 0.8; }
+
 .batch-actions { display: flex; gap: 12px; margin-top: 20px; }
 .batch-job-id { font-size: 0.72rem; color: var(--text-muted); margin-top: 12px; font-family: monospace; }
 

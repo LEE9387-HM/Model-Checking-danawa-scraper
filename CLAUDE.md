@@ -317,9 +317,11 @@ uvicorn main:app --reload --port 8000
 - [x] _meta() 공통 헬퍼로 메타 스펙 중복 제거
 - [x] 11개 카테고리 전수 검증: grading_spec 키 완전 매핑 확인
 
-### Phase 6 — CSV 배치 처리 시스템
-- [ ] batch_processor.py + asyncio.Queue + 체크포인트
-- [ ] CSV 업로드 UI + 진행률 바
+### Phase 6 — CSV 배치 처리 시스템 ✅ 완료
+- [x] batch_processor.py 개선 — current_model·start_time 필드 추가, ETA 계산, 서버 재시작 시 RUNNING→PAUSED 복구
+- [x] get_status() — current_model, eta_seconds, elapsed_sec, errors 목록(최근 10건) 반환
+- [x] _export_csv() — breakdown 항목별 점수 열(score_*) + diffs + UTF-8 BOM 포함
+- [x] 배치 UI 개선 — 현재 처리 모델명 pulse 애니메이션, ETA 표시, 에러 카운트/목록 토글
 
 ### Phase 7 — UI 폴리싱 + 최종 테스트
 - [ ] 레이더 차트 (SVG)
@@ -351,3 +353,5 @@ uvicorn main:app --reload --port 8000
 | 2026-04-16 | Phase 4 | selectors/lg.json, selectors/naver.json 다중 셀렉터 배열 구조로 개선 |
 | 2026-04-16 | Phase 4 | /api/competitors/verify 재채점+재랭킹 적용, 검증 상태별 행 색조 추가 |
 | 2026-04-16 | Phase 5 | spec_parser.py — 9개 카테고리 파서 추가, 11개 전수 검증 OK |
+| 2026-04-16 | Phase 6 | batch_processor.py — ETA, 현재 모델, 재시작 복구, breakdown CSV 출력 |
+| 2026-04-16 | Phase 6 | 배치 UI — 현재 모델 pulse, ETA, 에러 목록 토글, 상태 chip 색상 |

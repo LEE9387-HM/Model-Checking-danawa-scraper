@@ -413,17 +413,83 @@ function startPolling() {
 }
 
 function updateBatchUI(st) {
+  // 상태 chip
   const chip = document.getElementById('batch-status-label');
   chip.textContent = st.status;
   chip.className = 'batch-status-chip';
-  if (st.status === 'DONE') chip.style.cssText = 'background:rgba(16,185,129,.15);color:#10b981;padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:700';
-  else if (st.status === 'RUNNING') chip.style.cssText = 'background:rgba(99,102,241,.15);color:#818cf8;padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:700';
-  else chip.style.cssText = 'background:rgba(255,255,255,.07);color:#94a3b8;padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:700';
+  const chipStyles = {
+    DONE:      'background:rgba(16,185,129,.15);color:#10b981',
+    RUNNING:   'background:rgba(99,102,241,.15);color:#818cf8',
+    FAILED:    'background:rgba(239,68,68,.15);color:#f87171',
+    CANCELLED: 'background:rgba(148,163,184,.12);color:#94a3b8',
+    PAUSED:    'background:rgba(245,158,11,.12);color:#fbbf24',
+    QUEUED:    'background:rgba(255,255,255,.07);color:#94a3b8',
+  };
+  chip.style.cssText = (chipStyles[st.status] || chipStyles.QUEUED)
+    + ';padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:700';
 
+  // 진행 카운트 + 바
   document.getElementById('batch-progress-text').textContent = `${st.processed} / ${st.total}`;
   document.getElementById('batch-progress-bar').style.width = `${st.progress_pct}%`;
 
-  if (st.status === 'DONE') document.getElementById('btn-download').disabled = false;
+  // 에러 카운트
+  const errCount = document.getElementById('batch-error-count');
+  if (st.error_count > 0) {
+    errCount.classList.remove('hidden');
+    errCount.textContent = `오류 ${st.error_count}건`;
+    document.getElementById('batch-error-section').classList.remove('hidden');
+    renderErrorList(st.errors || []);
+  }
+
+  // ETA
+  const etaEl = document.getElementById('batch-eta');
+  const etaSep = document.getElementById('eta-sep');
+  if (st.eta_seconds != null && st.status === 'RUNNING') {
+    etaEl.classList.remove('hidden');
+    etaSep.classList.remove('hidden');
+    etaEl.textContent = `남은 시간 약 ${formatEta(st.eta_seconds)}`;
+  } else {
+    etaEl.classList.add('hidden');
+    etaSep.classList.add('hidden');
+  }
+
+  // 현재 처리 중인 모델명
+  const curModel = document.getElementById('batch-current-model');
+  if (st.current_model && st.status === 'RUNNING') {
+    curModel.classList.remove('hidden');
+    curModel.textContent = `⚙ 처리 중: ${st.current_model}`;
+  } else {
+    curModel.classList.add('hidden');
+  }
+
+  if (st.status === 'DONE') {
+    document.getElementById('btn-download').disabled = false;
+    curModel.classList.add('hidden');
+  }
+}
+
+function formatEta(seconds) {
+  if (seconds < 60) return `${seconds}초`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}분 ${s}초` : `${m}분`;
+}
+
+function renderErrorList(errors) {
+  const list = document.getElementById('batch-error-list');
+  if (!errors.length) return;
+  list.innerHTML = errors.map(e => `
+    <div class="batch-error-item">
+      <span class="batch-error-model">${e.model_name}</span>
+      <span class="batch-error-msg">${e.error}</span>
+    </div>`).join('');
+}
+
+function toggleErrorList() {
+  const list = document.getElementById('batch-error-list');
+  const btn  = document.querySelector('.batch-error-toggle');
+  const hidden = list.classList.toggle('hidden');
+  btn.textContent = hidden ? '▶ 오류 목록 보기' : '▼ 오류 목록 닫기';
 }
 
 async function downloadBatchResult() {
