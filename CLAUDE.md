@@ -296,9 +296,11 @@ uvicorn main:app --reload --port 8000
 - [x] selectors/samsung.json 개선 — 다중 CSS 셀렉터 fallback 배열 구조로 변경
 - [x] 검증 결과 UI 표시 (✅⚠️❓) + 보정 항목 diff 목록 표시
 
-### Phase 3 — 경쟁사 탐색 + 랭킹 완성
-- [ ] 경쟁사 크롤링 + 채점 + 복합 랭킹
-- [ ] 경쟁사 비교 테이블 UI
+### Phase 3 — 경쟁사 탐색 + 랭킹 완성 ✅ 완료
+- [x] selectors/danawa.json — 카테고리 코드 매핑 11개 + 인기순 정렬 URL + 다중 셀렉터 배열
+- [x] crawler.py — get_category_url() + _extract_release_year() + 출시년도 ±2년 필터 + 필수 스펙 필터 + 다중 셀렉터
+- [x] main.py — category_url 자동 생성 + release_year 파라미터 + score_pool() 공정 채점
+- [x] 경쟁사 비교 테이블 UI — 유사도 bar 시각화 + 총점 색상 chip (green/yellow/red) + 모델명 줄임
 
 ### Phase 4 — 경쟁사 공식몰 교차검증
 - [ ] lg_adapter.py, naver_store_adapter.py
@@ -335,3 +337,7 @@ uvicorn main:app --reload --port 8000
 | 2026-04-16 | Phase 2 | verifier.py 어댑터 패턴 리팩토링 + 11개 카테고리 KEY_MAP 추가 |
 | 2026-04-16 | Phase 2 | selectors/samsung.json 다중 셀렉터 배열 구조로 개선 |
 | 2026-04-16 | Phase 2 | 프론트엔드 검증 결과 UI — verify badge + diffs 목록 표시 완성 |
+| 2026-04-16 | Phase 3 | selectors/danawa.json 카테고리 코드 매핑 + 인기순 URL + 다중 셀렉터 |
+| 2026-04-16 | Phase 3 | crawler.py 전면 개선 — 출시년도 필터, 필수스펙 필터, get_category_url() |
+| 2026-04-16 | Phase 3 | main.py — release_year 파라미터, score_pool() 공정 채점 적용 |
+| 2026-04-16 | Phase 3 | 프론트엔드 경쟁사 테이블 — 유사도 bar, 총점 색상 chip, 자동 출시년도 추출 |

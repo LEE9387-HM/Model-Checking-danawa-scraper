@@ -328,14 +328,55 @@ body {
 .rank-badge.rank-1 { background: rgba(245,158,11,0.2); color: #fbbf24; }
 .rank-badge.rank-2 { background: rgba(148,163,184,0.15); color: #94a3b8; }
 .rank-badge.rank-3 { background: rgba(180,83,9,0.15); color: #c2410c; }
-.sim-bar { display: flex; align-items: center; gap: 8px; }
-.sim-pct { font-size: 0.8rem; font-weight: 600; color: var(--accent-secondary); }
+
+/* 유사도 bar */
+.sim-bar-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 90px;
+}
+.sim-bar-fill {
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  height: 3px;
+  background: var(--accent-secondary);
+  border-radius: 2px;
+  opacity: 0.35;
+  pointer-events: none;
+}
+.sim-pct {
+  position: relative;
+  font-size: 0.8rem; font-weight: 600;
+  color: var(--accent-secondary);
+  z-index: 1;
+}
+
+/* 총점 색상 chip */
+.score-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.score-chip.score-high { background: rgba(16,185,129,0.15); color: var(--accent-success); }
+.score-chip.score-mid  { background: rgba(245,158,11,0.13); color: var(--accent-warning); }
+.score-chip.score-low  { background: rgba(239,68,68,0.12);  color: var(--accent-danger); }
+.score-chip:not(.score-high):not(.score-mid):not(.score-low) { color: var(--accent-light); }
+
+/* 모델명 줄임 */
+.model-cell { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .verify-dot {
   display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px;
 }
 .verify-dot.VERIFIED { background: var(--accent-success); }
 .verify-dot.CORRECTED { background: var(--accent-warning); }
 .verify-dot.UNVERIFIED { background: var(--text-muted); }
+.verify-text { font-size: 0.75rem; color: var(--text-secondary); }
 .score-val { font-weight: 600; color: var(--accent-light); }
 
 /* ─── Batch Tab ──────────────────────────────────────────── */

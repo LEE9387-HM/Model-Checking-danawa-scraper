@@ -16,8 +16,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from batch_processor import batch_processor, ModelItem
-from crawler import fetch_model_spec, fetch_competitors
-from scoring import score_model, load_rules
+from crawler import fetch_model_spec, fetch_competitors, get_category_url
+from scoring import score_model, score_pool, load_rules
 from similarity import filter_and_rank
 from spec_parser import parse_spec
 from verifier import verify_samsung, verify_competitor
@@ -48,6 +48,7 @@ class CompetitorsRequest(BaseModel):
     samsung_spec: dict[str, Any]
     primary_spec_filter: dict[str, Any] = {}
     category_url: str = ""
+    release_year: int | None = None
 
 
 class CompetitorVerifyRequest(BaseModel):
@@ -105,29 +106,39 @@ async def api_score(req: ScoreRequest):
 
 @app.post("/api/competitors", summary="Step 4~5: 경쟁사 탐색 + 유사도 랭킹")
 async def api_competitors(req: CompetitorsRequest):
-    if not req.category_url:
-        raise HTTPException(status_code=400, detail="category_url이 필요합니다")
+    # category_url이 없으면 카테고리에서 자동 생성
+    category_url = req.category_url or get_category_url(req.category)
 
     competitors_raw = await fetch_competitors(
-        category_url=req.category_url,
+        category_url=category_url,
         primary_spec_filter=req.primary_spec_filter,
         exclude_brand="삼성전자",
         max_count=20,
+        samsung_release_year=req.release_year,
     )
 
-    # 각 경쟁사 스펙 파싱
-    competitors = []
+    if not competitors_raw:
+        return {"competitors": [], "total_found": 0}
+
+    # 스펙 파싱
     rules = load_rules(req.category)
     grading_spec_names = list(rules["grading_specs"].keys())
 
+    parsed_comps = []
     for comp in competitors_raw:
         spec = parse_spec(req.category, comp["raw_spec"])
-        score_res = score_model(req.category, spec)
-        competitors.append({
-            **comp,
-            "spec": spec,
-            "score": score_res,
-        })
+        parsed_comps.append({**comp, "spec": spec})
+
+    # 삼성 포함 전체 풀 기준 Min-Max 채점 (공정한 상대 평가)
+    all_models = [{"spec": req.samsung_spec}] + parsed_comps
+    scored_all = score_pool(req.category, all_models)
+    # 첫 번째(삼성)는 제외하고 경쟁사만 추출
+    scored_comps = scored_all[1:]
+    # score_pool 결과를 parsed_comps와 병합
+    competitors = [
+        {**parsed_comps[i], "score": scored_comps[i]["score"]}
+        for i in range(len(parsed_comps))
+    ]
 
     # 유사도 필터 + 복합 랭킹
     ranked = filter_and_rank(

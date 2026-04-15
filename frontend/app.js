@@ -144,6 +144,12 @@ function renderBreakdown(breakdown) {
 }
 
 /* ─── Competitors Table ───────────────────────── */
+function scoreClass(score) {
+  if (score >= 80) return 'score-high';
+  if (score >= 60) return 'score-mid';
+  return 'score-low';
+}
+
 function renderCompetitors(comps) {
   const tbody = document.getElementById('comp-tbody');
   tbody.innerHTML = '';
@@ -151,29 +157,34 @@ function renderCompetitors(comps) {
   document.getElementById('competitors-section').classList.remove('hidden');
 
   comps.forEach((c, idx) => {
-    const rank = idx + 1;
-    const sim = c.similarity ? (c.similarity * 100).toFixed(0) : '-';
-    const score = c.score?.total_score?.toFixed(1) ?? '-';
+    const rank = c.rank ?? idx + 1;
+    const simVal = c.similarity ? c.similarity * 100 : 0;
+    const simPct = simVal ? simVal.toFixed(0) : '-';
+    const scoreVal = c.score?.total_score ?? null;
+    const scoreDisp = scoreVal !== null ? scoreVal.toFixed(1) : '-';
+    const scoreCls = scoreVal !== null ? scoreClass(scoreVal) : '';
     const status = c.verification || 'UNVERIFIED';
     const price = c.price ? `${c.price.toLocaleString()}원` : '-';
+    const year = c.release_year || c.spec?.release_year || '-';
 
     tbody.innerHTML += `
       <tr>
-        <td><span class="rank-badge rank-${rank}">${rank}</span></td>
-        <td>${c.model_name}</td>
+        <td><span class="rank-badge rank-${Math.min(rank, 10)}">${rank}</span></td>
+        <td class="model-cell" title="${c.model_name}">${c.model_name}</td>
         <td>${c.brand || '-'}</td>
         <td>${price}</td>
-        <td>${c.spec?.release_year || '-'}</td>
-        <td class="score-val">${score}</td>
+        <td>${year}</td>
+        <td><span class="score-chip ${scoreCls}">${scoreDisp}</span></td>
         <td>${(c.review_count || 0).toLocaleString()}</td>
         <td>
-          <div class="sim-bar">
-            <span class="sim-pct">${sim}%</span>
+          <div class="sim-bar-wrap">
+            <div class="sim-bar-fill" style="width:${simVal.toFixed(0)}%"></div>
+            <span class="sim-pct">${simPct}%</span>
           </div>
         </td>
         <td>
           <span class="verify-dot ${status}"></span>
-          ${status}
+          <span class="verify-text">${status}</span>
         </td>
       </tr>`;
   });
@@ -277,9 +288,12 @@ async function startAnalysis() {
 
     // Step 4~5: 경쟁사 탐색
     setProgress('Step 4/7: 다나와에서 경쟁사 탐색 중…', 55, 4);
-    // NOTE: category_url은 실제 카테고리 URL이 필요. 여기서는 skeleton 처리
     let competitorRes = { competitors: [] };
     try {
+      // 출시년도 자동 추출 (raw_spec 또는 finalSpec 에서)
+      const releaseYear = finalSpec.release_year
+        || parseInt(searchRes.raw_spec?.__release_year__ || '0') || null;
+
       competitorRes = await fetch(`${API}/api/competitors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -287,10 +301,13 @@ async function startAnalysis() {
           category,
           samsung_spec: finalSpec,
           primary_spec_filter: {},
-          category_url: `https://www.danawa.com/product/productListInit.php?cate_code=${getRulesCategoryId(category)}`,
+          category_url: '',   // 비워두면 서버에서 자동 생성
+          release_year: releaseYear,
         }),
       }).then(r => r.ok ? r.json() : Promise.reject(await r.json()));
-    } catch { /* 경쟁사 탐색 실패 시 계속 */ }
+    } catch (e) {
+      console.warn('[경쟁사 탐색 실패, 계속 진행]', e);
+    }
 
     setProgress('Step 5/7: 유사도 필터 + 복합 랭킹 산출…', 70, 5);
     await sleep(300);
