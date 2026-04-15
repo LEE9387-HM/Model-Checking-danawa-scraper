@@ -372,11 +372,17 @@ body {
 
 .verify-dot {
   display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px;
+  flex-shrink: 0;
 }
-.verify-dot.VERIFIED { background: var(--accent-success); }
-.verify-dot.CORRECTED { background: var(--accent-warning); }
+.verify-dot.VERIFIED   { background: var(--accent-success); }
+.verify-dot.CORRECTED  { background: var(--accent-warning); box-shadow: 0 0 5px rgba(245,158,11,.6); }
 .verify-dot.UNVERIFIED { background: var(--text-muted); }
 .verify-text { font-size: 0.75rem; color: var(--text-secondary); }
+
+/* 검증 상태별 행 색조 */
+.comp-table tbody tr.row-CORRECTED  { background: rgba(245,158,11,0.04); }
+.comp-table tbody tr.row-VERIFIED   { background: rgba(16,185,129,0.03); }
+
 .score-val { font-weight: 600; color: var(--accent-light); }
 
 /* ─── Batch Tab ──────────────────────────────────────────── */

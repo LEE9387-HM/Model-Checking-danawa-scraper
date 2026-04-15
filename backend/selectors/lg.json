@@ -2,10 +2,32 @@
   "base_url": "https://www.lge.co.kr",
   "search_url": "https://www.lge.co.kr/search?query={model}",
   "selectors": {
-    "search_result": ".search-result-product a",
-    "product_name": ".pdp-title h1",
-    "spec_section": ".spec-list",
-    "spec_label": ".spec-name",
-    "spec_value": ".spec-value"
+    "search_result": [
+      ".search-result-product a",
+      ".product-list-item a",
+      ".MuiCard-root a",
+      "[data-testid='product-card'] a",
+      ".css-product-card a"
+    ],
+    "spec_section_trigger": [
+      "a[href*='#specification']",
+      "button[data-section='spec']",
+      ".tab-item:contains('제품 사양')",
+      "[aria-label='제품 사양']"
+    ],
+    "spec_label": [
+      ".spec-name",
+      ".spec-key",
+      ".MuiTypography-subtitle2",
+      "dt",
+      ".feature-title"
+    ],
+    "spec_value": [
+      ".spec-value",
+      ".spec-desc",
+      ".MuiTypography-body2",
+      "dd",
+      ".feature-desc"
+    ]
   }
 }

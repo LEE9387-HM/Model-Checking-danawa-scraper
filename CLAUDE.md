@@ -302,10 +302,14 @@ uvicorn main:app --reload --port 8000
 - [x] main.py — category_url 자동 생성 + release_year 파라미터 + score_pool() 공정 채점
 - [x] 경쟁사 비교 테이블 UI — 유사도 bar 시각화 + 총점 색상 chip (green/yellow/red) + 모델명 줄임
 
-### Phase 4 — 경쟁사 공식몰 교차검증
-- [ ] lg_adapter.py, naver_store_adapter.py
-- [ ] selectors/lg.json, selectors/naver.json
-- [ ] 검증 반영된 최종 리스트
+### Phase 4 — 경쟁사 공식몰 교차검증 ✅ 완료
+- [x] official_malls/lg_adapter.py — LG전자몰(lge.co.kr) 크롤러 (다중 셀렉터 + dt/dd fallback)
+- [x] official_malls/naver_store_adapter.py — 네이버 쇼핑 검색 크롤러 (th/td fallback)
+- [x] selectors/lg.json — 다중 CSS 셀렉터 배열 구조로 개선
+- [x] selectors/naver.json — 네이버 쇼핑 셀렉터 개선
+- [x] main.py /api/competitors/verify — 검증 후 재채점(score_pool) + 재랭킹 적용
+- [x] CompetitorVerifyRequest에 samsung_spec 추가
+- [x] 검증 상태별 테이블 행 색조 (CORRECTED 노랑, VERIFIED 초록)
 
 ### Phase 5 — 11개 카테고리 확장
 - [ ] 나머지 10개 룰셋 JSON (refrigerator 외 9개)
@@ -341,3 +345,6 @@ uvicorn main:app --reload --port 8000
 | 2026-04-16 | Phase 3 | crawler.py 전면 개선 — 출시년도 필터, 필수스펙 필터, get_category_url() |
 | 2026-04-16 | Phase 3 | main.py — release_year 파라미터, score_pool() 공정 채점 적용 |
 | 2026-04-16 | Phase 3 | 프론트엔드 경쟁사 테이블 — 유사도 bar, 총점 색상 chip, 자동 출시년도 추출 |
+| 2026-04-16 | Phase 4 | lg_adapter.py, naver_store_adapter.py 구현 완료 |
+| 2026-04-16 | Phase 4 | selectors/lg.json, selectors/naver.json 다중 셀렉터 배열 구조로 개선 |
+| 2026-04-16 | Phase 4 | /api/competitors/verify 재채점+재랭킹 적용, 검증 상태별 행 색조 추가 |

@@ -168,7 +168,7 @@ function renderCompetitors(comps) {
     const year = c.release_year || c.spec?.release_year || '-';
 
     tbody.innerHTML += `
-      <tr>
+      <tr class="row-${status}">
         <td><span class="rank-badge rank-${Math.min(rank, 10)}">${rank}</span></td>
         <td class="model-cell" title="${c.model_name}">${c.model_name}</td>
         <td>${c.brand || '-'}</td>
@@ -312,7 +312,7 @@ async function startAnalysis() {
     setProgress('Step 5/7: 유사도 필터 + 복합 랭킹 산출…', 70, 5);
     await sleep(300);
 
-    // Step 6: 경쟁사 검증
+    // Step 6: 경쟁사 공식몰 검증 + 재채점/재랭킹
     setProgress('Step 6/7: 경쟁사 공식몰 검증 중…', 82, 6);
     let verifiedComps = competitorRes.competitors || [];
     if (verifiedComps.length > 0) {
@@ -320,10 +320,19 @@ async function startAnalysis() {
         const compVerifyRes = await fetch(`${API}/api/competitors/verify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ category, competitors: verifiedComps }),
+          body: JSON.stringify({
+            category,
+            competitors: verifiedComps,
+            samsung_spec: finalSpec,
+          }),
         }).then(r => r.ok ? r.json() : Promise.reject(await r.json()));
         verifiedComps = compVerifyRes.competitors;
-      } catch { /* 경쟁사 검증 실패 무시 */ }
+        if (compVerifyRes.rescored) {
+          showToast('공식몰 스펙 보정 후 재채점/재랭킹이 적용되었습니다.');
+        }
+      } catch (e) {
+        console.warn('[경쟁사 검증 실패, 기존 결과 유지]', e);
+      }
     }
 
     // Step 7: 결과 출력

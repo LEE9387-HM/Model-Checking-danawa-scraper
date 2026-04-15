@@ -1,10 +1,38 @@
 {
-  "search_url": "https://search.shopping.naver.com/search/all?query={model}&brand={brand}",
+  "search_url": "https://search.shopping.naver.com/search/all?query={model}+{brand}&cat_id=&frm=NVSHATC",
+  "product_url": "https://search.shopping.naver.com/catalog/{catalog_id}",
   "selectors": {
-    "product_item": ".product_item",
-    "product_name": ".product_title",
-    "product_spec_link": ".product_grade a",
-    "spec_label": ".spec_label",
-    "spec_value": ".spec_value"
+    "product_item": [
+      ".adProduct_item__1P6sq",
+      ".product_item__MDtDF",
+      "li[data-nclick*='catalog']",
+      ".basicList_item__0T9f9"
+    ],
+    "product_link": [
+      ".product_link__TrAac",
+      ".adProduct_link__1ywYK",
+      "a[href*='/catalog/']",
+      "a[href*='shopping.naver.com']"
+    ],
+    "spec_section_trigger": [
+      "a[href*='#section_spec']",
+      "a[href*='#스펙']",
+      "button:contains('상세정보')",
+      "[data-tab='spec']"
+    ],
+    "spec_label": [
+      ".specsTable_item_label__TnmJm",
+      ".specTable_tit__MRqv2",
+      "th.spec_label",
+      "dt",
+      ".spec_name"
+    ],
+    "spec_value": [
+      ".specsTable_item_desc__pfaGd",
+      ".specTable_desc__zRUWQ",
+      "td.spec_value",
+      "dd",
+      ".spec_desc"
+    ]
   }
 }

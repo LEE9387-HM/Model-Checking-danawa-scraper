@@ -54,6 +54,7 @@ class CompetitorsRequest(BaseModel):
 class CompetitorVerifyRequest(BaseModel):
     category: str
     competitors: list[dict[str, Any]]
+    samsung_spec: dict[str, Any] = {}
 
 
 # ─── Lifespan ───────────────────────────────────────────────────────────────
@@ -151,23 +152,48 @@ async def api_competitors(req: CompetitorsRequest):
     return {"competitors": ranked, "total_found": len(competitors)}
 
 
-@app.post("/api/competitors/verify", summary="Step 6: 경쟁사 공식몰 교차검증")
+@app.post("/api/competitors/verify", summary="Step 6: 경쟁사 공식몰 교차검증 + 재채점/재랭킹")
 async def api_competitors_verify(req: CompetitorVerifyRequest):
-    verified = []
-    for comp in req.competitors:
+    # ─ 1) 공식몰 교차검증 (병렬 처리) ─
+    import asyncio as _aio
+    async def _verify_one(comp):
         verify_res = await verify_competitor(
             model_name=comp["model_name"],
             brand=comp.get("brand", ""),
             danawa_spec=comp.get("spec", {}),
             category=req.category,
         )
-        verified.append({
+        return {
             **comp,
-            "spec": verify_res["corrected_spec"],
+            "spec":         verify_res["corrected_spec"],
             "verification": verify_res["status"],
-            "diffs": verify_res["diffs"],
-        })
-    return {"competitors": verified}
+            "diffs":        verify_res["diffs"],
+        }
+
+    verified = list(await _aio.gather(*[_verify_one(c) for c in req.competitors]))
+
+    # ─ 2) 보정 스펙 기준 재채점 (CORRECTED 항목이 있을 때만 의미 있음) ─
+    corrected_any = any(c["verification"] == "CORRECTED" for c in verified)
+    if corrected_any and req.samsung_spec:
+        rules = load_rules(req.category)
+        grading_spec_names = list(rules["grading_specs"].keys())
+
+        # 삼성 포함 전체 풀 재채점
+        all_models = [{"spec": req.samsung_spec}] + verified
+        scored_all = score_pool(req.category, all_models)
+        for i, comp in enumerate(verified):
+            comp["score"] = scored_all[i + 1]["score"]
+
+        # 재랭킹
+        verified = filter_and_rank(
+            samsung_spec=req.samsung_spec,
+            competitors=verified,
+            spec_names=grading_spec_names,
+            similarity_threshold=0.0,   # 이미 1차 필터 통과한 목록
+            top_n=len(verified),
+        )
+
+    return {"competitors": verified, "rescored": corrected_any}
 
 
 @app.get("/api/rules/{category}", summary="카테고리 룰셋 조회")
