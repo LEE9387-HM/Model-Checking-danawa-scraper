@@ -7,6 +7,10 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from official_malls.samsung_adapter import SamsungAdapter
+from official_malls.lg_adapter import LgAdapter
+from official_malls.naver_store_adapter import NaverStoreAdapter
+
 SELECTORS_DIR = Path(__file__).parent / "selectors"
 
 
@@ -165,8 +169,6 @@ async def verify_samsung(
             "diffs":          {...},   # 변경된 항목만
         }
     """
-    from official_malls.samsung_adapter import SamsungAdapter
-
     adapter = SamsungAdapter()
     official = await adapter.fetch(model_name)
 
@@ -201,9 +203,6 @@ async def verify_competitor(
 
     Returns: verify_samsung과 동일한 구조
     """
-    from official_malls.lg_adapter import LgAdapter
-    from official_malls.naver_store_adapter import NaverStoreAdapter
-
     brand_lower = brand.lower()
 
     if "lg" in brand_lower or "엘지" in brand_lower:

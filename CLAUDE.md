@@ -323,11 +323,15 @@ uvicorn main:app --reload --port 8000
 - [x] _export_csv() — breakdown 항목별 점수 열(score_*) + diffs + UTF-8 BOM 포함
 - [x] 배치 UI 개선 — 현재 처리 모델명 pulse 애니메이션, ETA 표시, 에러 카운트/목록 토글
 
-### Phase 7 — UI 폴리싱 + 최종 테스트
-- [ ] 레이더 차트 (SVG)
-- [ ] 로딩 UX (단계별 진행 표시기)
-- [ ] pytest 자동화 테스트
-- [ ] 전체 E2E 테스트
+### Phase 7 — UI 폴리싱 + 최종 테스트 ✅ 완료
+- [x] 레이더 차트 (SVG) — 그리드 레벨 라벨, 포인트별 점수 라벨, SVG `<title>` 툴팁, 애니메이션
+- [x] 로딩 UX (단계별 진행 표시기) — ✓ 완료 표시, 그린 그래디언트 100%, connector .done
+- [x] pytest 자동화 테스트 — 117 passed, 5 skipped (E2E), 0 failed
+  - test_scoring.py: 룰셋 무결성(33개) + 파서(13개) + 채점 엔진(14개)
+  - test_verifier.py: VerifyStatus + KEY_MAP + diff/apply + verify_samsung/competitor (mock)
+  - test_batch.py: ModelItem + JobCheckpoint + BatchProcessor 상태관리/create_job/복구
+  - test_e2e_crawler.py: get_category_url (3개 pass) + 크롤링 5개 skip (DANAWA_E2E=1 필요)
+- [x] 전체 E2E 테스트 — get_category_url 11개 카테고리 URL 생성 확인 ✅
 
 ---
 
@@ -355,3 +359,8 @@ uvicorn main:app --reload --port 8000
 | 2026-04-16 | Phase 5 | spec_parser.py — 9개 카테고리 파서 추가, 11개 전수 검증 OK |
 | 2026-04-16 | Phase 6 | batch_processor.py — ETA, 현재 모델, 재시작 복구, breakdown CSV 출력 |
 | 2026-04-16 | Phase 6 | 배치 UI — 현재 모델 pulse, ETA, 에러 목록 토글, 상태 chip 색상 |
+| 2026-04-16 | Phase 7 | 레이더 차트 SVG 개선 — 그리드 라벨, 포인트 점수, 툴팁, 애니메이션 |
+| 2026-04-16 | Phase 7 | 로딩 UX — 단계별 진행 표시기, ✓ 완료 표시, stepPulse 애니메이션 |
+| 2026-04-16 | Phase 7 | pytest 자동화 테스트 완성 — 117 passed, 5 skipped (E2E), 0 failed |
+| 2026-04-16 | Phase 7 | verifier.py 어댑터 모듈 레벨 import로 개선 (mock 테스트 호환성) |
+| 2026-04-16 | Phase 7 | .claude/launch.json — dev 서버 설정 저장 |

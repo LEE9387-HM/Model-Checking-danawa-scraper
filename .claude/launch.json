@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "danawa-scraper (FastAPI + Frontend)",
+      "runtimeExecutable": "uvicorn",
+      "runtimeArgs": ["main:app", "--reload", "--port", "8000"],
+      "cwd": "backend",
+      "port": 8000
+    }
+  ]
+}

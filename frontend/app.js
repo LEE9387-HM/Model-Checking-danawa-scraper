@@ -21,18 +21,34 @@ function showToast(msg, isError = false) {
 }
 
 /* ─── Progress ────────────────────────────────── */
+const STEP_LABELS = ['다나와 검색', '공식몰 검증', '100점 채점', '경쟁사 탐색', '유사도 필터', '경쟁사 검증', '완료'];
+
 function setProgress(label, pct, activeStep) {
   document.getElementById('progress-section').classList.remove('hidden');
   document.getElementById('progress-label').textContent = label;
   document.getElementById('progress-pct').textContent = `${Math.round(pct)}%`;
-  document.getElementById('progress-bar').style.width = `${pct}%`;
+  const bar = document.getElementById('progress-bar');
+  bar.style.width = `${pct}%`;
+  bar.style.background = pct === 100
+    ? 'linear-gradient(90deg,#10b981,#34d399)'
+    : 'linear-gradient(90deg,#6366f1,#22d3ee)';
 
+  const indicators = document.getElementById('step-indicators');
   for (let i = 1; i <= 7; i++) {
     const dot = document.getElementById(`step-${i}`);
     dot.classList.remove('active', 'done');
-    if (i < activeStep) dot.classList.add('done');
-    else if (i === activeStep) dot.classList.add('active');
+    if (i < activeStep) {
+      dot.classList.add('done');
+      dot.textContent = '✓';
+    } else {
+      dot.textContent = i;
+      if (i === activeStep) dot.classList.add('active');
+    }
   }
+  // connector에 done 클래스 적용 (완료된 step 사이)
+  indicators.querySelectorAll('.step-connector').forEach((conn, idx) => {
+    conn.classList.toggle('done', idx + 1 < activeStep - 1);
+  });
 }
 
 function hideProgress() {
@@ -60,69 +76,104 @@ function drawGauge(score) {
 }
 
 /* ─── Radar Chart ─────────────────────────────── */
+function svgEl(tag, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+  return el;
+}
+
 function drawRadar(breakdown) {
   const svg = document.getElementById('radar-chart');
   svg.innerHTML = '';
-  const cx = 150, cy = 150, r = 100;
+  const cx = 155, cy = 155, r = 100;
   const keys = Object.keys(breakdown);
   const n = keys.length;
   if (n < 3) return;
 
-  const angle = (i) => ((2 * Math.PI * i) / n) - Math.PI / 2;
-  const point = (i, val, scale) => {
-    const a = angle(i);
-    return [cx + Math.cos(a) * val * scale, cy + Math.sin(a) * val * scale];
-  };
+  const angle = i => (2 * Math.PI * i / n) - Math.PI / 2;
+  const pt    = (i, radius) => [
+    cx + Math.cos(angle(i)) * radius,
+    cy + Math.sin(angle(i)) * radius,
+  ];
 
-  // 배경 격자 (3 레이어)
-  [0.33, 0.66, 1.0].forEach(t => {
-    const pts = Array.from({ length: n }, (_, i) => point(i, r * t, 1)).map(p => p.join(',')).join(' ');
-    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    poly.setAttribute('points', pts);
-    poly.setAttribute('fill', 'none');
-    poly.setAttribute('stroke', 'rgba(255,255,255,0.07)');
-    poly.setAttribute('stroke-width', '1');
-    svg.appendChild(poly);
+  // ─ 격자 + 레벨 레이블 ─
+  [0.33, 0.66, 1.0].forEach((t, li) => {
+    const pts = Array.from({ length: n }, (_, i) => pt(i, r * t).join(',')).join(' ');
+    svg.appendChild(svgEl('polygon', {
+      points: pts, fill: 'none',
+      stroke: 'rgba(255,255,255,0.07)', 'stroke-width': '1',
+    }));
+    // 3등분 레이블 (첫 번째 축 위에 표시)
+    const [lx, ly] = pt(0, r * t);
+    const levelLabel = svgEl('text', {
+      x: lx + 4, y: ly - 3,
+      fill: 'rgba(255,255,255,0.2)', 'font-size': '7',
+      'font-family': 'Pretendard,Inter,sans-serif',
+    });
+    levelLabel.textContent = [3, 6, 10][li];
+    svg.appendChild(levelLabel);
   });
 
-  // 축 선
+  // ─ 축 선 ─
   for (let i = 0; i < n; i++) {
-    const [x, y] = point(i, r, 1);
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', cx); line.setAttribute('y1', cy);
-    line.setAttribute('x2', x);  line.setAttribute('y2', y);
-    line.setAttribute('stroke', 'rgba(255,255,255,0.08)'); line.setAttribute('stroke-width', '1');
-    svg.appendChild(line);
+    const [x, y] = pt(i, r);
+    svg.appendChild(svgEl('line', {
+      x1: cx, y1: cy, x2: x, y2: y,
+      stroke: 'rgba(255,255,255,0.09)', 'stroke-width': '1',
+    }));
   }
 
-  // 데이터 폴리곤
-  const values = keys.map(k => (breakdown[k] || 0) / 10);
-  const dataPts = values.map((v, i) => point(i, r * v, 1)).map(p => p.join(',')).join(' ');
-  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-  poly.setAttribute('points', dataPts);
-  poly.setAttribute('fill', 'rgba(99,102,241,0.25)');
-  poly.setAttribute('stroke', '#6366f1');
-  poly.setAttribute('stroke-width', '2');
+  // ─ 데이터 폴리곤 (애니메이션) ─
+  const values = keys.map(k => Math.min((breakdown[k] || 0) / 10, 1));
+  const dataPts = values.map((v, i) => pt(i, r * v).join(',')).join(' ');
+
+  const poly = svgEl('polygon', {
+    points: dataPts,
+    fill: 'rgba(99,102,241,0.22)',
+    stroke: '#6366f1', 'stroke-width': '2',
+    class: 'radar-poly',
+  });
   svg.appendChild(poly);
 
-  // 데이터 점 + 레이블
+  // ─ 데이터 점 + hover tooltip + 레이블 ─
   keys.forEach((k, i) => {
-    const [x, y] = point(i, r * values[i], 1);
-    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('cx', x); circle.setAttribute('cy', y);
-    circle.setAttribute('r', '4'); circle.setAttribute('fill', '#818cf8');
-    svg.appendChild(circle);
+    const v = values[i];
+    const [x, y] = pt(i, r * v);
 
-    const [lx, ly] = point(i, r * 1.22, 1);
-    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    label.setAttribute('x', lx); label.setAttribute('y', ly);
-    label.setAttribute('text-anchor', 'middle');
-    label.setAttribute('dominant-baseline', 'middle');
-    label.setAttribute('fill', '#94a3b8');
-    label.setAttribute('font-size', '9');
-    label.setAttribute('font-family', 'Pretendard, Inter, sans-serif');
-    label.textContent = k.replace(/_/g, ' ');
-    svg.appendChild(label);
+    // tooltip
+    const group = svgEl('g', { class: 'radar-point-group', style: 'cursor:default' });
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = `${k.replace(/_/g, ' ')}: ${(breakdown[k] || 0).toFixed(1)} / 10`;
+    group.appendChild(title);
+
+    group.appendChild(svgEl('circle', {
+      cx: x, cy: y, r: '5',
+      fill: '#818cf8', stroke: '#6366f1', 'stroke-width': '1.5',
+    }));
+
+    // 점수 값 레이블 (점 옆에 소형)
+    const scoreLabel = svgEl('text', {
+      x: x + (x > cx ? 7 : -7),
+      y: y + (y > cy ? 5 : -3),
+      fill: '#a5b4fc', 'font-size': '8',
+      'font-family': 'Pretendard,Inter,sans-serif',
+      'text-anchor': x > cx ? 'start' : 'end',
+    });
+    scoreLabel.textContent = (breakdown[k] || 0).toFixed(1);
+    group.appendChild(scoreLabel);
+
+    svg.appendChild(group);
+
+    // 축 이름 레이블 (외곽)
+    const [lx, ly] = pt(i, r * 1.27);
+    const lbl = svgEl('text', {
+      x: lx, y: ly,
+      'text-anchor': 'middle', 'dominant-baseline': 'middle',
+      fill: '#94a3b8', 'font-size': '9.5',
+      'font-family': 'Pretendard,Inter,sans-serif',
+    });
+    lbl.textContent = k.replace(/_/g, ' ');
+    svg.appendChild(lbl);
   });
 }
 
