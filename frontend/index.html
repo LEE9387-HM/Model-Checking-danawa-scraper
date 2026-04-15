@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>다나와 삼성 스펙 분석기 | 경쟁사 비교 서비스</title>
+  <meta name="description" content="삼성 전자제품 스펙을 100점 채점하고 경쟁사와 비교합니다. 다나와 기반 크롤링 + 공식몰 교차검증 + 코사인 유사도 랭킹.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 배경 글로우 -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  <div class="bg-glow bg-glow-3"></div>
+
+  <!-- 헤더 -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">SpecRank</span>
+        <span class="logo-tag">beta</span>
+      </div>
+      <nav class="tab-nav">
+        <button class="tab-btn active" id="tab-single" onclick="switchTab('single')">단건 분석</button>
+        <button class="tab-btn" id="tab-batch" onclick="switchTab('batch')">CSV 배치</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-container">
+
+    <!-- ══════════════════════════════════════════ 단건 분석 탭 -->
+    <section id="panel-single" class="tab-panel active">
+
+      <!-- Hero 검색 -->
+      <div class="hero-card glass-card">
+        <h1 class="hero-title">삼성 전자제품 스펙 분석</h1>
+        <p class="hero-sub">모델명을 입력하면 **100점 채점 + 경쟁사 10개 비교**를 자동으로 수행합니다</p>
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              id="model-input"
+              class="search-input"
+              placeholder="예) KQ65QC80AFXKR, RF85B9111AP..."
+              autocomplete="off"
+            />
+          </div>
+          <button class="btn-primary" id="btn-analyze" onclick="startAnalysis()">
+            <span class="btn-text">분석 시작</span>
+            <span class="btn-icon">▶</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 진행 표시기 -->
+      <div id="progress-section" class="progress-section hidden">
+        <div class="progress-header">
+          <span id="progress-label" class="progress-label">분석 준비 중...</span>
+          <span id="progress-pct" class="progress-pct">0%</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div class="step-indicators" id="step-indicators">
+          <div class="step-dot" id="step-1" title="Step 1: 다나와 검색">1</div>
+          <div class="step-connector"></div>
+          <div class="step-dot" id="step-2" title="Step 2: 공식몰 검증">2</div>
+          <div class="step-connector"></div>
+          <div class="step-dot" id="step-3" title="Step 3: 채점">3</div>
+          <div class="step-connector"></div>
+          <div class="step-dot" id="step-4" title="Step 4: 경쟁사 탐색">4</div>
+          <div class="step-connector"></div>
+          <div class="step-dot" id="step-5" title="Step 5: 유사도 필터">5</div>
+          <div class="step-connector"></div>
+          <div class="step-dot" id="step-6" title="Step 6: 경쟁사 검증">6</div>
+          <div class="step-connector"></div>
+          <div class="step-dot" id="step-7" title="Step 7: 결과 출력">7</div>
+        </div>
+      </div>
+
+      <!-- 삼성 모델 결과 카드 -->
+      <div id="result-card" class="result-card glass-card hidden">
+        <div class="result-header">
+          <div class="result-model-info">
+            <span id="result-category-badge" class="category-badge"></span>
+            <h2 id="result-model-name" class="result-model-name"></h2>
+            <div class="result-meta">
+              <span id="result-brand" class="meta-chip"></span>
+              <span id="result-year" class="meta-chip"></span>
+              <span id="result-price" class="meta-chip price-chip"></span>
+            </div>
+          </div>
+          <div class="score-gauge-wrap">
+            <svg class="score-gauge" viewBox="0 0 120 120" id="score-gauge-svg">
+              <circle class="gauge-bg" cx="60" cy="60" r="50" />
+              <circle class="gauge-fill" cx="60" cy="60" r="50" id="gauge-fill" />
+              <text class="gauge-score" x="60" y="64" text-anchor="middle" id="gauge-score-text">-</text>
+              <text class="gauge-label" x="60" y="82" text-anchor="middle">/ 100</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 검증 상태 뱃지 -->
+        <div id="verify-status-row" class="verify-status-row hidden">
+          <div class="verify-summary">
+            <span id="verify-badge" class="verify-badge"></span>
+            <span id="verify-desc" class="verify-desc"></span>
+          </div>
+          <!-- 보정된 항목 목록 (CORRECTED일 때만 표시) -->
+          <div id="verify-diffs" class="verify-diffs hidden"></div>
+        </div>
+
+        <!-- 레이더 차트 -->
+        <div class="radar-section">
+          <h3 class="section-title">스펙 점수 분포</h3>
+          <div class="radar-wrap">
+            <svg id="radar-chart" viewBox="0 0 300 300" class="radar-chart"></svg>
+          </div>
+        </div>
+
+        <!-- 스펙 점수 상세 -->
+        <div id="score-breakdown" class="score-breakdown"></div>
+      </div>
+
+      <!-- 경쟁사 비교 테이블 -->
+      <div id="competitors-section" class="glass-card hidden">
+        <div class="competitors-header">
+          <h3 class="section-title">경쟁사 비교 <span id="comp-count" class="comp-count"></span></h3>
+          <div class="sort-hint">복합 랭킹순 · 인기 50% + 리뷰 30% + 유사도 20%</div>
+        </div>
+        <div class="table-scroll">
+          <table class="comp-table" id="comp-table">
+            <thead>
+              <tr>
+                <th>순위</th>
+                <th>모델명</th>
+                <th>브랜드</th>
+                <th>가격</th>
+                <th>출시</th>
+                <th>총점</th>
+                <th>리뷰수</th>
+                <th>유사도</th>
+                <th>검증</th>
+              </tr>
+            </thead>
+            <tbody id="comp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ══════════════════════════════════════════ CSV 배치 탭 -->
+    <section id="panel-batch" class="tab-panel hidden">
+      <div class="glass-card batch-card">
+        <h2 class="batch-title">CSV 대량 배치 처리</h2>
+        <p class="batch-desc">모델 목록을 CSV로 업로드하면 자동으로 채점 + 경쟁사 비교 후 결과 CSV를 다운로드합니다.</p>
+
+        <!-- CSV 포맷 가이드 -->
+        <div class="csv-format-box">
+          <div class="csv-format-title">📋 CSV 형식</div>
+          <code class="csv-format-code">model_name,category_hint,release_year_filter<br>KQ65QC80AFXKR,,<br>RF85B9111AP,,<br>WF24B9600KE,세탁기,2024</code>
+        </div>
+
+        <!-- 드래그앤드롭 업로드 -->
+        <div class="dropzone" id="dropzone"
+          ondragover="event.preventDefault(); this.classList.add('drag-over')"
+          ondragleave="this.classList.remove('drag-over')"
+          ondrop="handleDrop(event)">
+          <div class="dropzone-icon">📤</div>
+          <div class="dropzone-text">CSV 파일을 여기에 드래그하거나</div>
+          <label class="btn-secondary dropzone-btn">
+            파일 선택
+            <input type="file" id="batch-file-input" accept=".csv" hidden onchange="handleFileSelect(event)">
+          </label>
+          <div id="selected-filename" class="selected-filename"></div>
+        </div>
+
+        <button class="btn-primary batch-upload-btn" id="btn-batch-upload" onclick="uploadBatch()" disabled>
+          배치 시작 ▶
+        </button>
+      </div>
+
+      <!-- 배치 진행 현황 -->
+      <div id="batch-status-section" class="glass-card hidden">
+        <h3 class="section-title">진행 현황</h3>
+        <div class="batch-progress-wrap">
+          <div class="batch-info-row">
+            <span id="batch-status-label" class="batch-status-chip">QUEUED</span>
+            <span id="batch-progress-text">0 / 0</span>
+          </div>
+          <div class="progress-bar-wrap">
+            <div id="batch-progress-bar" class="progress-bar"></div>
+          </div>
+        </div>
+        <div class="batch-actions">
+          <button class="btn-secondary" onclick="downloadBatchResult()" id="btn-download" disabled>📥 결과 다운로드</button>
+          <button class="btn-danger" onclick="cancelBatch()" id="btn-cancel">⛔ 취소</button>
+        </div>
+        <div id="batch-job-id-display" class="batch-job-id"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 에러 토스트 -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

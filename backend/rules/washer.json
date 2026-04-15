@@ -1,0 +1,17 @@
+{
+  "category": "washer",
+  "display_name": "세탁기",
+  "danawa_category_id": "108",
+  "primary_specs": ["wash_capacity_kg", "washer_type"],
+  "meta_specs": ["release_year", "brand", "price", "review_count"],
+  "grading_specs": {
+    "energy_rating": { "weight": 0.25, "direction": "lower_better", "levels": { "1등급": 10, "2등급": 7, "3등급": 5, "4등급": 3, "5등급": 1 } },
+    "spin_rpm":      { "weight": 0.20, "direction": "higher_better", "unit": "RPM" },
+    "mode_count":    { "weight": 0.15, "direction": "higher_better", "unit": "개" },
+    "steam":         { "weight": 0.20, "direction": "boolean", "true_value": 10, "false_value": 0 },
+    "noise_level":   { "weight": 0.10, "direction": "lower_better", "unit": "dB" },
+    "smart_features":{ "weight": 0.10, "direction": "higher_better", "levels": { "미지원": 0, "기본": 5, "AI": 10 } }
+  },
+  "year_filter_range": 2,
+  "notes": "가중치 합계: 1.00"
+}

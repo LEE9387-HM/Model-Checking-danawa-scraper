@@ -1,0 +1,43 @@
+{
+  "category": "refrigerator",
+  "display_name": "냉장고",
+  "danawa_category_id": "107",
+  "primary_specs": ["capacity_l", "door_type"],
+  "meta_specs": ["release_year", "brand", "price", "review_count"],
+  "grading_specs": {
+    "energy_rating": {
+      "weight": 0.25,
+      "direction": "lower_better",
+      "levels": { "1등급": 10, "2등급": 7, "3등급": 5, "4등급": 3, "5등급": 1 }
+    },
+    "inverter": {
+      "weight": 0.20,
+      "direction": "boolean",
+      "true_value": 10,
+      "false_value": 0
+    },
+    "cooling_type": {
+      "weight": 0.20,
+      "direction": "higher_better",
+      "levels": { "간냉식": 10, "직냉식": 5 }
+    },
+    "deodorize_antibacterial": {
+      "weight": 0.15,
+      "direction": "boolean",
+      "true_value": 10,
+      "false_value": 0
+    },
+    "smart_features": {
+      "weight": 0.10,
+      "direction": "higher_better",
+      "levels": { "미지원": 0, "기본": 5, "AI": 10 }
+    },
+    "noise_level": {
+      "weight": 0.10,
+      "direction": "lower_better",
+      "unit": "dB"
+    }
+  },
+  "year_filter_range": 2,
+  "notes": "가중치 합계: 0.25+0.20+0.20+0.15+0.10+0.10 = 1.00"
+}

@@ -1,0 +1,16 @@
+{
+  "category": "dryer",
+  "display_name": "건조기",
+  "danawa_category_id": "119",
+  "primary_specs": ["dry_capacity_kg", "dry_method"],
+  "meta_specs": ["release_year", "brand", "price", "review_count"],
+  "grading_specs": {
+    "energy_rating": { "weight": 0.30, "direction": "lower_better", "levels": { "1등급": 10, "2등급": 7, "3등급": 5, "4등급": 3, "5등급": 1 } },
+    "mode_count":    { "weight": 0.20, "direction": "higher_better", "unit": "개" },
+    "filter_type":   { "weight": 0.20, "direction": "higher_better", "levels": { "기본": 3, "듀얼": 7, "히트펌프": 10 } },
+    "noise_level":   { "weight": 0.15, "direction": "lower_better", "unit": "dB" },
+    "smart_features":{ "weight": 0.15, "direction": "higher_better", "levels": { "미지원": 0, "기본": 5, "AI": 10 } }
+  },
+  "year_filter_range": 2,
+  "notes": "가중치 합계: 1.00"
+}

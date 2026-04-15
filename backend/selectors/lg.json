@@ -1,0 +1,11 @@
+{
+  "base_url": "https://www.lge.co.kr",
+  "search_url": "https://www.lge.co.kr/search?query={model}",
+  "selectors": {
+    "search_result": ".search-result-product a",
+    "product_name": ".pdp-title h1",
+    "spec_section": ".spec-list",
+    "spec_label": ".spec-name",
+    "spec_value": ".spec-value"
+  }
+}

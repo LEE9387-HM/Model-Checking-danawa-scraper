@@ -1,0 +1,10 @@
+{
+  "search_url": "https://search.shopping.naver.com/search/all?query={model}&brand={brand}",
+  "selectors": {
+    "product_item": ".product_item",
+    "product_name": ".product_title",
+    "product_spec_link": ".product_grade a",
+    "spec_label": ".spec_label",
+    "spec_value": ".spec_value"
+  }
+}

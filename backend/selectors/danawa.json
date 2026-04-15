@@ -1,0 +1,32 @@
+{
+  "search_url": "https://search.danawa.com/dsearch.php",
+  "search_param": "query",
+  "selectors": {
+    "search_first_result": ".prod-list .prod-item:first-child .prod-name a",
+    "search_result_link": ".prod-list .prod-item .prod-name a",
+    "product_name": "#productDescriptionArea .prod-buy-header__title",
+    "spec_table": ".spec_list",
+    "spec_row": ".spec-descr-item",
+    "spec_label": ".spec-descr-item__title",
+    "spec_value": ".spec-descr-item__desc",
+    "price": ".lowest_price strong, .pricelist-item__price-link",
+    "review_count": ".danawa-review-count",
+    "category_breadcrumb": ".breadcrumb a",
+    "release_year": "th:contains('출시년월') + td, th:contains('출시 연도') + td",
+    "brand": "th:contains('제조회사') + td, th:contains('브랜드') + td",
+    "popular_sort_url": "https://www.danawa.com/product/productListInit.php",
+    "product_list_item": ".product_list .prod_item",
+    "product_list_name": ".prod_name a",
+    "product_list_price": ".prc_t",
+    "product_list_review": ".cmt_count"
+  },
+  "anti_bot": {
+    "user_agents": [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ],
+    "min_delay_ms": 1000,
+    "max_delay_ms": 3000
+  }
+}
