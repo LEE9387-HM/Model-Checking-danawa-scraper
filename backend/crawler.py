@@ -92,27 +92,56 @@ async def _query_all(page: Page, selectors: list[str]) -> list:
 
 # ─── 스펙 파싱 헬퍼 ──────────────────────────────────────────────────────────
 
-async def _parse_spec_table(page: Page) -> dict[str, str]:
-    """다나와 상세 페이지 스펙 테이블 파싱."""
+async def _parse_spec_table(page: Page, selectors: dict) -> dict[str, str]:
+    """다나와 상세 페이지 스펙 테이블 및 요약 정보 파싱."""
     raw: dict[str, str] = {}
     try:
-        rows = await _query_all(page, [".spec-descr-item", ".spec_list tr"])
+        # 1. 상세 테이블 파싱 (th/td, dt/dd)
+        rows = await _query_all(page, selectors["spec_row"])
         for row in rows:
-            th = await _query_first(row, [".spec-descr-item__title", "th"])
-            td = await _query_first(row, [".spec-descr-item__desc", "td"])
+            th = await _query_first(row, selectors["spec_label"])
+            td = await _query_first(row, selectors["spec_value"])
             if th and td:
                 key = (await th.inner_text()).strip()
                 val = (await td.inner_text()).strip()
                 if key and val:
                     raw[key] = val
+        
+        # 2. 요약 정보 및 개별 항목 파싱 (dt/dd 가 row 없이 나열된 경우 대응)
+        if not raw:
+            labels = await _query_all(page, selectors["spec_label"])
+            values = await _query_all(page, selectors["spec_value"])
+            if labels and values:
+                for l, v in zip(labels, values):
+                    key = (await l.inner_text()).strip()
+                    val = (await v.inner_text()).strip()
+                    if key and val:
+                        raw[key] = val
+
+        # 3. 요약 정보(u 태그 등) 추가 파싱 (Fallback/보완)
+        if not raw or len(raw) < 5:
+            summary_els = await page.query_selector_all("div.spec_draw u, .spec_list u, .spec_list a")
+            for el in summary_els:
+                text = (await el.inner_text()).strip()
+                # "미니LED TV / 65인치..." 형태 분해
+                if "/" in text:
+                    for p in text.split("/"):
+                        p = p.strip()
+                        if ":" in p:
+                            k, v = p.split(":", 1)
+                            raw[k.strip()] = v.strip()
+                        elif p:
+                            raw[p] = "O"
+                elif text:
+                    raw[text] = "O"
     except Exception as e:
-        print(f"[crawler] 스펙 테이블 파싱 오류: {e}")
+        print(f"[crawler] 스펙 파싱 오류: {e}")
     return raw
 
 
-async def _extract_price(page: Page) -> int:
-    sel_list = [".lowest_price strong", ".pricelist-item__price-link", ".prc_t"]
-    el = await _query_first(page, sel_list)
+async def _extract_price(page: Page, selectors: list[str]) -> int:
+    """다양한 단가 셀렉터 시도."""
+    el = await _query_first(page, selectors)
     if el:
         text = await el.inner_text()
         nums = re.sub(r"[^\d]", "", text)
@@ -152,12 +181,18 @@ async def _extract_brand(page: Page, spec_table: dict[str, str]) -> str:
 
 async def _extract_release_year(page: Page, spec_table: dict[str, str]) -> int | None:
     """출시년도 추출. 스펙 테이블 우선, 없으면 셀렉터 시도."""
-    for key in ("출시년월", "출시연도", "출시 연도", "출시년도"):
+    # 1. 스펙 테이블에서 다양한 키로 검색
+    for key in ("출시년월", "출시연도", "출시 연도", "출시년도", "출시일"):
         if key in spec_table:
             val = spec_table[key]
-            m = re.search(r"(\d{4})", val)
+            # "2024.03", "2024-03-15", "2024년" 등 처리
+            m = re.search(r"(20\d{2})", val)
             if m:
                 return int(m.group(1))
+    
+    # 2. 모델명에서 연도 코드 추정 (보완적 수단)
+    # TODO: 브랜드별 모델명 연도 코드 매핑 도입 가능
+    
     return None
 
 
@@ -176,10 +211,14 @@ def _passes_primary_filter(raw_spec: dict[str, str], primary_filter: dict[str, A
     return True
 
 
-def _passes_year_filter(release_year: int | None, samsung_year: int | None, window: int = 2) -> bool:
-    """출시년도 ±window년 필터."""
-    if samsung_year is None or release_year is None:
-        return True  # 년도 정보 없으면 통과
+def _passes_year_filter(release_year: int | None, samsung_year: int | None, window: int = 0) -> bool:
+    """출시년도 ±window년 필터. 기본값 0(동일년도)."""
+    if samsung_year is None:
+        return True  # 삼성 모델 년도를 모르면 필터 불가 (전체 통과)
+    
+    if release_year is None:
+        return False  # 경쟁사 모델의 년도를 모르면 탈락 (엄격 검증)
+        
     return abs(release_year - samsung_year) <= window
 
 
@@ -208,24 +247,32 @@ async def _fetch_model_spec_impl(model_name: str) -> dict[str, Any]:
         page = await ctx.new_page()
 
         try:
-            print(f"[crawler] 검색: {model_name}")
+            print(f"[crawler] 검색 시작: {model_name}")
             await page.goto(search_url, wait_until="domcontentloaded", timeout=30_000)
-            await asyncio.sleep(_rand_delay(800, 1500))
+            await asyncio.sleep(_rand_delay(1500, 2500))
 
-            link = await _query_first(page, [
-                ".prod-list .prod-item:first-child .prod-name a",
-                ".prod_list .prod_item:first-child .prod_name a",
-                ".product_list .prod_item:first-child .prod_name a",
-            ])
-            if not link:
-                return {"error": "검색 결과 없음", "model_name": model_name}
+            # 다나와는 검색 시 제품 상세로 자동 리다이렉트되는 경우가 있음
+            current_url = page.url
+            if "prod_code=" in current_url:
+                print(f"[crawler] 상세 페이지로 자동 이동됨: {current_url}")
+            else:
+                selectors = _load_selectors()
+                link = await _query_first(page, selectors["selectors"]["search_first_result"])
+                if not link:
+                    # 캡차 혹은 검색 결과 없음 확인
+                    content = await page.content()
+                    if "robot" in content.lower() or "captcha" in content.lower():
+                        return {"error": "BOT_DETECTION", "model_name": model_name}
+                    return {"error": "검색 결과 없음", "model_name": model_name}
 
-            await link.click()
-            await page.wait_for_load_state("domcontentloaded")
-            await asyncio.sleep(_rand_delay(1000, 2000))
+                print(f"[crawler] 검색 결과 클릭 중...")
+                await link.click()
+                await page.wait_for_load_state("domcontentloaded")
+                await asyncio.sleep(_rand_delay(1000, 2000))
 
-            raw_spec = await _parse_spec_table(page)
-            price = await _extract_price(page)
+            selectors = _load_selectors()["selectors"]
+            raw_spec = await _parse_spec_table(page, selectors)
+            price = await _extract_price(page, selectors["price"])
             review_count = await _extract_review_count(page)
             brand = await _extract_brand(page, raw_spec)
             release_year = await _extract_release_year(page, raw_spec)
@@ -319,26 +366,29 @@ async def _fetch_competitors_impl(
             await page.goto(category_url, wait_until="domcontentloaded", timeout=30_000)
             await asyncio.sleep(_rand_delay(1500, 2500))
 
+            # 설정 로드
+            sel_data = _load_selectors()
+            selectors = sel_data["selectors"]
+
             # 상품 목록 수집
-            items = await _query_all(page, [
-                ".prod_list .prod_item",
-                ".product_list .prod_item",
-                ".prod-list .prod-item",
-            ])
+            items = await _query_all(page, selectors["product_list_item"])
 
             links: list[tuple[str, str, int]] = []  # (name, url, rank)
             for rank, item in enumerate(items[:40], 1):
-                name_el = await _query_first(item, [".prod_name a", ".prod-name a"])
+                name_el = await _query_first(item, selectors["product_list_name"])
                 if not name_el:
                     continue
                 name = (await name_el.inner_text()).strip()
                 href = await name_el.get_attribute("href") or ""
-                # 삼성 제외
-                brand_el = await _query_first(item, [".brand_name", ".mfr_name"])
-                item_brand = (await brand_el.inner_text()).strip() if brand_el else ""
-                if exclude_brand in name or exclude_brand in item_brand:
+                # 삼성 제외 (브랜드 셀렉터 사용)
+                # 다나와 리스트의 제조사명 셀렉터가 종종 바뀌므로 텍스트 포함 여부로 보조
+                if exclude_brand in name:
                     continue
+                
                 if href:
+                    # href가 상대 영로인 경우 절대 경로로 변환
+                    if href.startswith("/"):
+                        href = "https://prod.danawa.com" + href
                     links.append((name, href, rank))
 
             print(f"[crawler] 경쟁사 후보 {len(links)}개 (삼성 제외)")
@@ -351,11 +401,12 @@ async def _fetch_competitors_impl(
                     break
                 try:
                     prod_page = await ctx.new_page()
+                    # 상세 페이지는 보통 'prod_code='가 포함된 URL
                     await prod_page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-                    await asyncio.sleep(_rand_delay(800, 1500))
+                    await asyncio.sleep(_rand_delay(1000, 2000))
 
-                    raw_spec = await _parse_spec_table(prod_page)
-                    price = await _extract_price(prod_page)
+                    raw_spec = await _parse_spec_table(prod_page, selectors)
+                    price = await _extract_price(prod_page, selectors["price"])
                     review_count = await _extract_review_count(prod_page)
                     brand = await _extract_brand(prod_page, raw_spec)
                     release_year = await _extract_release_year(prod_page, raw_spec)

@@ -3,17 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>다나와 삼성 스펙 분석기 | 경쟁사 비교 서비스</title>
-  <meta name="description" content="삼성 전자제품 스펙을 100점 채점하고 경쟁사와 비교합니다. 다나와 기반 크롤링 + 공식몰 교차검증 + 코사인 유사도 랭킹.">
+  <title>SpecRank | 삼성 TV 가격 경쟁력 분석기</title>
+  <meta name="description" content="삼성 TV 스펙을 100점 채점하고 감가상각 기반 경쟁사 비교 및 가격 경쟁력(OVERPRICED/FAIR)을 즉시 분석합니다.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- 배경 글로우 -->
-  <div class="bg-glow bg-glow-1"></div>
-  <div class="bg-glow bg-glow-2"></div>
-  <div class="bg-glow bg-glow-3"></div>
 
   <!-- 헤더 -->
   <header class="site-header">
@@ -37,27 +33,135 @@
 
       <!-- Hero 검색 -->
       <div class="hero-card glass-card">
-        <h1 class="hero-title">삼성 전자제품 스펙 분석</h1>
-        <p class="hero-sub">모델명을 입력하면 **100점 채점 + 경쟁사 10개 비교**를 자동으로 수행합니다</p>
-        <div class="search-row">
-          <div class="search-input-wrap">
-            <span class="search-icon">🔍</span>
-            <input
-              type="text"
-              id="model-input"
-              class="search-input"
-              placeholder="예) KQ65QC80AFXKR, RF85B9111AP..."
-              autocomplete="off"
-            />
-          </div>
-          <button class="btn-primary" id="btn-analyze" onclick="startAnalysis()">
-            <span class="btn-text">분석 시작</span>
-            <span class="btn-icon">▶</span>
+        <h1 class="hero-title">삼성 TV 가격 경쟁력 분석</h1>
+        <p class="hero-sub">스펙 필터로 모델을 선택하거나 모델명을 직접 입력해 <strong>OVERPRICED · FAIR · COMPETITIVE</strong> 판정을 즉시 확인하세요</p>
+
+        <!-- 모드 토글 -->
+        <div class="mode-toggle-row">
+          <button class="mode-btn active" id="mode-db" onclick="switchMode('db')">
+            <span class="mode-icon">⚡</span>
+            <span class="mode-label">DB 즉시 분석</span>
+            <span class="mode-badge">~1초</span>
           </button>
+          <button class="mode-btn" id="mode-live" onclick="switchMode('live')">
+            <span class="mode-icon">🌐</span>
+            <span class="mode-label">실시간 크롤링</span>
+            <span class="mode-badge">~2분</span>
+          </button>
+        </div>
+
+        <!-- DB 모드 입력 영역 -->
+        <div id="db-input-area">
+          <!-- 스펙 드롭다운 필터 (TV 전용) -->
+          <div class="spec-filter-row">
+            <div class="spec-filter-group">
+              <label class="spec-filter-label">화면 크기</label>
+              <select class="spec-select" id="filter-size" onchange="onFilterChange()">
+                <option value="">전체</option>
+              </select>
+            </div>
+            <div class="spec-filter-group">
+              <label class="spec-filter-label">해상도</label>
+              <select class="spec-select" id="filter-resolution" onchange="onFilterChange()">
+                <option value="">전체</option>
+              </select>
+            </div>
+            <div class="spec-filter-group">
+              <label class="spec-filter-label">연형</label>
+              <select class="spec-select" id="filter-year" onchange="onFilterChange()">
+                <option value="">전체</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 모델 선택 -->
+          <div class="model-select-row">
+            <div class="model-select-wrap">
+              <span class="search-icon">📺</span>
+              <select class="model-select" id="model-select">
+                <option value="">— 삼성 TV 모델 선택 —</option>
+              </select>
+            </div>
+            <button class="btn-primary" id="btn-db-analyze" onclick="startDbAnalysis()">
+              <span class="btn-text">즉시 분석</span>
+              <span class="btn-icon">⚡</span>
+            </button>
+          </div>
+          <div id="db-model-count" class="db-model-count"></div>
+        </div>
+
+        <!-- 실시간 크롤링 모드 입력 영역 -->
+        <div id="live-input-area" class="hidden">
+          <div class="search-row">
+            <div class="search-input-wrap">
+              <span class="search-icon">🔍</span>
+              <input
+                type="text"
+                id="model-input"
+                class="search-input"
+                placeholder="예) KQ65QC80AFXKR, RF85B9111AP..."
+                autocomplete="off"
+              />
+            </div>
+            <button class="btn-primary" id="btn-analyze" onclick="startAnalysis()">
+              <span class="btn-text">분석 시작</span>
+              <span class="btn-icon">▶</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- 진행 표시기 -->
+      <!-- DB 분석 결과 — Verdict 섹션 (DB 모드 전용) -->
+      <div id="verdict-section" class="verdict-section hidden">
+        <div id="verdict-card" class="verdict-card">
+          <div class="verdict-glow-ring"></div>
+          <div class="verdict-content">
+            <div class="verdict-badge-wrap">
+              <span id="verdict-badge" class="verdict-badge"></span>
+            </div>
+            <div class="verdict-cpi-block">
+              <div class="verdict-cpi-label">가중 CPI</div>
+              <div id="verdict-cpi-value" class="verdict-cpi-value">—</div>
+              <div id="verdict-cpi-bar-wrap" class="verdict-cpi-bar-wrap">
+                <div id="verdict-cpi-bar" class="verdict-cpi-bar"></div>
+                <span class="verdict-cpi-baseline">100 = 동등</span>
+              </div>
+            </div>
+            <div id="verdict-summary" class="verdict-summary"></div>
+          </div>
+          <div class="verdict-model-meta">
+            <span id="verdict-model-name" class="verdict-model-name"></span>
+            <span id="verdict-year-size" class="verdict-year-size"></span>
+            <span id="verdict-price" class="verdict-price"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 판정 기준 아코디언 (DB 분석 결과 후 표시) -->
+      <details class="logic-accordion hidden" id="logic-accordion">
+        <summary>📊 판정 기준 보기</summary>
+        <div class="logic-body">
+          <table class="logic-table">
+            <thead><tr><th>매칭 가중치</th><th>비율</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td>스펙 유사도</td><td>40%</td><td>TV 채점 스펙(주사율·HDR·스피커 등) 코사인 유사도</td></tr>
+              <tr><td>연형 근접</td><td>35%</td><td>동년=1.0, ±1년=0.7, ±2년=0.4</td></tr>
+              <tr><td>크기 근접</td><td>15%</td><td>인치 차이 ≤3" 범위 내 선형 보정</td></tr>
+              <tr><td>패널 일치</td><td>10%</td><td>QLED·OLED·Neo QLED 등 동일 패널 타입</td></tr>
+            </tbody>
+          </table>
+          <div style="font-size:0.8rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">CPI 판정 스케일 (삼성가 ÷ 경쟁사 감가조정가 × 100)</div>
+          <div class="logic-cpi-scale">
+            <div class="logic-cpi-row"><span class="logic-cpi-range">> 115</span><div class="logic-cpi-bar-bg"><div class="logic-cpi-fill contrib-spec" style="width:90%"></div></div><span class="logic-cpi-label verdict-mini verdict-mini-overpriced">OVERPRICED</span></div>
+            <div class="logic-cpi-row"><span class="logic-cpi-range">105–115</span><div class="logic-cpi-bar-bg"><div class="logic-cpi-fill contrib-size" style="width:70%"></div></div><span class="logic-cpi-label verdict-mini verdict-mini-slight_high">SLIGHT HIGH</span></div>
+            <div class="logic-cpi-row"><span class="logic-cpi-range">95–105</span><div class="logic-cpi-bar-bg"><div class="logic-cpi-fill contrib-year" style="width:50%"></div></div><span class="logic-cpi-label verdict-mini verdict-mini-fair">FAIR</span></div>
+            <div class="logic-cpi-row"><span class="logic-cpi-range">85–95</span><div class="logic-cpi-bar-bg"><div class="logic-cpi-fill contrib-panel" style="width:35%"></div></div><span class="logic-cpi-label verdict-mini verdict-mini-good_value">GOOD VALUE</span></div>
+            <div class="logic-cpi-row"><span class="logic-cpi-range">≤ 85</span><div class="logic-cpi-bar-bg"><div class="logic-cpi-fill contrib-panel" style="width:20%"></div></div><span class="logic-cpi-label verdict-mini verdict-mini-competitive">COMPETITIVE</span></div>
+          </div>
+        </div>
+      </details>
+
+      <!-- 실시간 크롤링 진행 표시기 -->
       <div id="progress-section" class="progress-section hidden">
         <div class="progress-header">
           <span id="progress-label" class="progress-label">분석 준비 중...</span>
@@ -111,7 +215,6 @@
             <span id="verify-badge" class="verify-badge"></span>
             <span id="verify-desc" class="verify-desc"></span>
           </div>
-          <!-- 보정된 항목 목록 (CORRECTED일 때만 표시) -->
           <div id="verify-diffs" class="verify-diffs hidden"></div>
         </div>
 
@@ -131,10 +234,33 @@
       <div id="competitors-section" class="glass-card hidden">
         <div class="competitors-header">
           <h3 class="section-title">경쟁사 비교 <span id="comp-count" class="comp-count"></span></h3>
-          <div class="sort-hint">복합 랭킹순 · 인기 50% + 리뷰 30% + 유사도 20%</div>
+          <div id="sort-hint" class="sort-hint">복합 랭킹순 · 스펙유사도 40% + 연형근접 35% + 크기근접 15% + 패널 10%</div>
         </div>
+        <!-- 삼성 기준 스펙 배너 (DB 모드 전용) -->
+        <div id="spec-banner" class="spec-banner hidden"></div>
+
         <div class="table-scroll">
-          <table class="comp-table" id="comp-table">
+          <!-- DB 모드 테이블 -->
+          <table class="comp-table hidden" id="comp-table-db">
+            <thead>
+              <tr>
+                <th>순위</th>
+                <th>모델명</th>
+                <th>브랜드</th>
+                <th>실제가격</th>
+                <th>조정가격 <span class="th-hint">감가상각</span></th>
+                <th>연형</th>
+                <th>스펙점수</th>
+                <th>유사도</th>
+                <th>조정 CPI</th>
+                <th>판정</th>
+              </tr>
+            </thead>
+            <tbody id="comp-tbody-db"></tbody>
+          </table>
+
+          <!-- 실시간 모드 테이블 (기존) -->
+          <table class="comp-table hidden" id="comp-table-live">
             <thead>
               <tr>
                 <th>순위</th>
@@ -161,13 +287,11 @@
         <h2 class="batch-title">CSV 대량 배치 처리</h2>
         <p class="batch-desc">모델 목록을 CSV로 업로드하면 자동으로 채점 + 경쟁사 비교 후 결과 CSV를 다운로드합니다.</p>
 
-        <!-- CSV 포맷 가이드 -->
         <div class="csv-format-box">
           <div class="csv-format-title">📋 CSV 형식</div>
           <code class="csv-format-code">model_name,category_hint,release_year_filter<br>KQ65QC80AFXKR,,<br>RF85B9111AP,,<br>WF24B9600KE,세탁기,2024</code>
         </div>
 
-        <!-- 드래그앤드롭 업로드 -->
         <div class="dropzone" id="dropzone"
           ondragover="event.preventDefault(); this.classList.add('drag-over')"
           ondragleave="this.classList.remove('drag-over')"
@@ -186,7 +310,6 @@
         </button>
       </div>
 
-      <!-- 배치 진행 현황 -->
       <div id="batch-status-section" class="glass-card hidden">
         <h3 class="section-title">진행 현황</h3>
         <div class="batch-progress-wrap">
@@ -206,7 +329,6 @@
           <div id="batch-current-model" class="batch-current-model hidden"></div>
         </div>
 
-        <!-- 에러 목록 (토글) -->
         <div id="batch-error-section" class="batch-error-section hidden">
           <button class="batch-error-toggle" onclick="toggleErrorList()">
             ▶ 오류 목록 보기

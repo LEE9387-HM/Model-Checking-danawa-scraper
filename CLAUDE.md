@@ -118,16 +118,17 @@ danawa-scraper/
     │
     ▼ Step 4 (~60초)
 ┌─────────────────────────────────────┐
-│  경쟁사 모델 탐색 (다나와 인기순)     │
+│  경쟁사 모델 탐색 및 세그먼트 매칭    │
 │  삼성 제외 상위 20개 크롤링          │
-│  필수스펙 필터 + 출시년도 ±2년 필터  │
+│  필수스펙 + 출시년도(Window=0) 필터  │
+│  주요 스펙(Primary Specs) 일치 확인  │
 └─────────────────────────────────────┘
     │
     ▼ Step 5 (<2초)
 ┌─────────────────────────────────────┐
-│  채점 + 코사인 유사도 필터 (≥0.75)   │
-│  복합 랭킹 = 인기순×0.5 + 리뷰수×0.3│
-│              + 유사도×0.2           │
+│  CPI/VFM 분석 및 복합 랭킹           │
+│  Class Parity(연도+주요스펙) 검증    │
+│  CPI 판정: 7단계 전략 Verdict 도출   │
 │  출력: 상위 10개 경쟁사              │
 └─────────────────────────────────────┘
     │
@@ -174,14 +175,14 @@ danawa-scraper/
 | 단건 분석 목표 | **2분 이내** |
 | CSV 100개 목표 | **3~5시간** |
 
-### 유사도 룰
+### 유사도 & 랭킹 룰
 
 | 항목 | 값 |
 |------|-----|
-| 알고리즘 | 코사인 유사도 |
-| 임계값 | **≥ 0.75** |
-| 최대 리스팅 | **10개** |
-| 랭킹 공식 | `인기순×0.5 + 리뷰수×0.3 + 유사도×0.2` |
+| 알고리즘 | 코사인 유사도 (Grading Specs 가중 벡터) |
+| 세그먼트 매칭 | **동일 출시년도 + 주요 스펙 일치** (엄격 적용) |
+| CPI 판정 | 100 기준 7단계 전략 Verdict (Verging Low ~ Verging High) |
+| 랭킹 공식 | `유사도×0.3 + 세그 가중×0.2 + 인기순×0.25 + 리뷰수×0.15 + 가격근접성×0.1` |
 
 ### 교차검증 상태
 
@@ -347,37 +348,19 @@ uvicorn main:app --reload --port 8000
 
 ---
 
+### Phase 8 — 가격 적정성(CPI) 및 멀티소스 고도화 ✅ 완료 (2026-04-16)
+- [x] **출시연도 엄격 매칭** — `rules/*.json` 전구간 `window=0` 강제 및 `release_year` 필수 조건화
+- [x] **멀티소스 검증(Waterfall)** — 삼성닷컴 실패 시 네이버 브랜드스토어 연동 (`verifier.py`)
+- [x] **CPI 분석 엔진** — `price_intelligence.py` 신규 생성, 7단계 전략 Verdict 알고리즘 구현
+- [x] **세그먼트 정규화** — `similarity.py`에서 주요 스펙(Primary Specs) 불일치 모델 CPI 분석 제외/페널티 적용
+- [x] **배치 처리 확장** — CSV 결과에 CPI, Verdict, VFM, 검증 소스 정보 일괄 포함
+
+---
+
 ## 📝 작업 로그
 
 | 날짜 | Phase | 작업 내용 |
 |------|-------|---------|
-| 2026-04-15 | 계획 | 구현 계획 v4 수립 (7단계 파이프라인, 11개 카테고리, 기술 스택 확정) |
-| 2026-04-15 | Phase 1 | CLAUDE.md 생성, 폴더 구조 완성, venv+패키지 설치, Playwright Chromium 설치 |
-| 2026-04-15 | Phase 1 | crawler.py, spec_parser.py, scoring.py, similarity.py, verifier.py, batch_processor.py, main.py 작성 |
-| 2026-04-15 | Phase 1 | rules/ 11개 카테고리 룰셋 JSON, selectors/ 4개 JSON 작성 |
-| 2026-04-15 | Phase 1 | frontend/ 다크 Glassmorphism UI (index.html + style.css + app.js) 완성 |
-| 2026-04-15 | Phase 1 | FastAPI 서버 http://localhost:8000 정상 실행 확인 ✅ |
-| 2026-04-16 | Phase 2 | official_malls/ 어댑터 패키지 생성 (base, samsung, lg stub, naver stub) |
-| 2026-04-16 | Phase 2 | verifier.py 어댑터 패턴 리팩토링 + 11개 카테고리 KEY_MAP 추가 |
-| 2026-04-16 | Phase 2 | selectors/samsung.json 다중 셀렉터 배열 구조로 개선 |
-| 2026-04-16 | Phase 2 | 프론트엔드 검증 결과 UI — verify badge + diffs 목록 표시 완성 |
-| 2026-04-16 | Phase 3 | selectors/danawa.json 카테고리 코드 매핑 + 인기순 URL + 다중 셀렉터 |
-| 2026-04-16 | Phase 3 | crawler.py 전면 개선 — 출시년도 필터, 필수스펙 필터, get_category_url() |
-| 2026-04-16 | Phase 3 | main.py — release_year 파라미터, score_pool() 공정 채점 적용 |
-| 2026-04-16 | Phase 3 | 프론트엔드 경쟁사 테이블 — 유사도 bar, 총점 색상 chip, 자동 출시년도 추출 |
-| 2026-04-16 | Phase 4 | lg_adapter.py, naver_store_adapter.py 구현 완료 |
-| 2026-04-16 | Phase 4 | selectors/lg.json, selectors/naver.json 다중 셀렉터 배열 구조로 개선 |
-| 2026-04-16 | Phase 4 | /api/competitors/verify 재채점+재랭킹 적용, 검증 상태별 행 색조 추가 |
-| 2026-04-16 | Phase 5 | spec_parser.py — 9개 카테고리 파서 추가, 11개 전수 검증 OK |
-| 2026-04-16 | Phase 6 | batch_processor.py — ETA, 현재 모델, 재시작 복구, breakdown CSV 출력 |
-| 2026-04-16 | Phase 6 | 배치 UI — 현재 모델 pulse, ETA, 에러 목록 토글, 상태 chip 색상 |
-| 2026-04-16 | Phase 7 | 레이더 차트 SVG 개선 — 그리드 라벨, 포인트 점수, 툴팁, 애니메이션 |
-| 2026-04-16 | Phase 7 | 로딩 UX — 단계별 진행 표시기, ✓ 완료 표시, stepPulse 애니메이션 |
-| 2026-04-16 | Phase 7 | pytest 자동화 테스트 완성 — 117 passed, 5 skipped (E2E), 0 failed |
-| 2026-04-16 | Phase 7 | verifier.py 어댑터 모듈 레벨 import로 개선 (mock 테스트 호환성) |
-| 2026-04-16 | Phase 7 | .claude/launch.json — dev 서버 설정 저장 |
-| 2026-04-16 | 버그픽스 | app.js .then() async 누락 문법 오류 수정 → 검색 버튼 동작 복구 |
-| 2026-04-16 | 버그픽스 | Windows asyncio.SelectorEventLoop + Playwright subprocess NotImplementedError 해결 |
-| 2026-04-16 | 버그픽스 | app.mount("/", StaticFiles) → catch-all 라우트 교체 (API 라우트 우선순위 복구) |
-| 2026-04-16 | 버그픽스 | base_adapter.py ProactorEventLoop 스레드 fix 적용 (Samsung/LG/Naver 어댑터 공통) |
-| 2026-04-16 | E2E 확인 | 실서버 파이프라인 Step 1~5 전 구간 200 OK 확인 (KQ65QNH70AFXKR, KQ55SF8EAEXKR) |
+| 2026-04-16 | Phase 8 | CPI(경쟁가격지수) 7단계 판정 로직 및 동일 연도/세그먼트 엄격 매칭 구현 |
+| 2026-04-16 | Phase 8 | 네이버 브랜드스토어 Waterfall 검증 패턴 도입 (삼성/LG/경쟁사 공통) |
+| 2026-04-16 | Phase 8 | batch_processor.py 개선 — CSV 결과에 가격 지능 분석 데이터 전수 포함 |

@@ -1,8 +1,36 @@
 /* ═══════════════════════════════════════════════
-   app.js — 단건 분석 + CSV 배치 처리 UI 로직
+   app.js — SpecRank UI 로직
+   DB 즉시 분석 모드 + 실시간 크롤링 모드 + CSV 배치
    ═══════════════════════════════════════════════ */
 
-const API = '';  // 같은 오리진에서 서빙 (uvicorn 포트와 동일)
+const API = '';  // 같은 오리진에서 서빙
+
+/* ─── 모드 상태 ──────────────────────────────────── */
+let _currentMode = 'db';  // 'db' | 'live'
+
+function switchMode(mode) {
+  _currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`mode-${mode}`).classList.add('active');
+
+  const dbArea  = document.getElementById('db-input-area');
+  const liveArea = document.getElementById('live-input-area');
+
+  if (mode === 'db') {
+    dbArea.classList.remove('hidden');
+    liveArea.classList.add('hidden');
+  } else {
+    dbArea.classList.add('hidden');
+    liveArea.classList.remove('hidden');
+  }
+
+  // 결과 섹션 초기화
+  document.getElementById('verdict-section').classList.add('hidden');
+  document.getElementById('result-card').classList.add('hidden');
+  document.getElementById('competitors-section').classList.add('hidden');
+  document.getElementById('logic-accordion').classList.add('hidden');
+  document.getElementById('spec-banner').classList.add('hidden');
+}
 
 /* ─── 탭 전환 ─────────────────────────────────── */
 function switchTab(name) {
@@ -30,8 +58,8 @@ function setProgress(label, pct, activeStep) {
   const bar = document.getElementById('progress-bar');
   bar.style.width = `${pct}%`;
   bar.style.background = pct === 100
-    ? 'linear-gradient(90deg,#10b981,#34d399)'
-    : 'linear-gradient(90deg,#6366f1,#22d3ee)';
+    ? 'linear-gradient(90deg,#059669,#10b981)'
+    : 'linear-gradient(90deg,#1B4FD8,#0891B2)';
 
   const indicators = document.getElementById('step-indicators');
   for (let i = 1; i <= 7; i++) {
@@ -45,7 +73,6 @@ function setProgress(label, pct, activeStep) {
       if (i === activeStep) dot.classList.add('active');
     }
   }
-  // connector에 done 클래스 적용 (완료된 step 사이)
   indicators.querySelectorAll('.step-connector').forEach((conn, idx) => {
     conn.classList.toggle('done', idx + 1 < activeStep - 1);
   });
@@ -58,13 +85,12 @@ function hideProgress() {
 /* ─── Score Gauge ─────────────────────────────── */
 function drawGauge(score) {
   const svg = document.getElementById('score-gauge-svg');
-  // SVG gradient 정의
   if (!svg.querySelector('defs')) {
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     defs.innerHTML = `
       <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#6366f1"/>
-        <stop offset="100%" stop-color="#22d3ee"/>
+        <stop offset="0%" stop-color="#1B4FD8"/>
+        <stop offset="100%" stop-color="#0891B2"/>
       </linearGradient>`;
     svg.prepend(defs);
   }
@@ -96,80 +122,67 @@ function drawRadar(breakdown) {
     cy + Math.sin(angle(i)) * radius,
   ];
 
-  // ─ 격자 + 레벨 레이블 ─
   [0.33, 0.66, 1.0].forEach((t, li) => {
     const pts = Array.from({ length: n }, (_, i) => pt(i, r * t).join(',')).join(' ');
     svg.appendChild(svgEl('polygon', {
       points: pts, fill: 'none',
-      stroke: 'rgba(255,255,255,0.07)', 'stroke-width': '1',
+      stroke: 'rgba(0,0,0,0.07)', 'stroke-width': '1',
     }));
-    // 3등분 레이블 (첫 번째 축 위에 표시)
     const [lx, ly] = pt(0, r * t);
     const levelLabel = svgEl('text', {
       x: lx + 4, y: ly - 3,
-      fill: 'rgba(255,255,255,0.2)', 'font-size': '7',
+      fill: 'rgba(0,0,0,0.2)', 'font-size': '7',
       'font-family': 'Pretendard,Inter,sans-serif',
     });
     levelLabel.textContent = [3, 6, 10][li];
     svg.appendChild(levelLabel);
   });
 
-  // ─ 축 선 ─
   for (let i = 0; i < n; i++) {
     const [x, y] = pt(i, r);
     svg.appendChild(svgEl('line', {
       x1: cx, y1: cy, x2: x, y2: y,
-      stroke: 'rgba(255,255,255,0.09)', 'stroke-width': '1',
+      stroke: 'rgba(0,0,0,0.08)', 'stroke-width': '1',
     }));
   }
 
-  // ─ 데이터 폴리곤 (애니메이션) ─
   const values = keys.map(k => Math.min((breakdown[k] || 0) / 10, 1));
   const dataPts = values.map((v, i) => pt(i, r * v).join(',')).join(' ');
-
   const poly = svgEl('polygon', {
     points: dataPts,
-    fill: 'rgba(99,102,241,0.22)',
-    stroke: '#6366f1', 'stroke-width': '2',
+    fill: 'rgba(27,79,216,0.12)',
+    stroke: '#1B4FD8', 'stroke-width': '2',
     class: 'radar-poly',
   });
   svg.appendChild(poly);
 
-  // ─ 데이터 점 + hover tooltip + 레이블 ─
   keys.forEach((k, i) => {
     const v = values[i];
     const [x, y] = pt(i, r * v);
-
-    // tooltip
     const group = svgEl('g', { class: 'radar-point-group', style: 'cursor:default' });
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
     title.textContent = `${k.replace(/_/g, ' ')}: ${(breakdown[k] || 0).toFixed(1)} / 10`;
     group.appendChild(title);
-
     group.appendChild(svgEl('circle', {
       cx: x, cy: y, r: '5',
-      fill: '#818cf8', stroke: '#6366f1', 'stroke-width': '1.5',
+      fill: '#3B6FE8', stroke: '#1B4FD8', 'stroke-width': '1.5',
     }));
-
-    // 점수 값 레이블 (점 옆에 소형)
     const scoreLabel = svgEl('text', {
       x: x + (x > cx ? 7 : -7),
       y: y + (y > cy ? 5 : -3),
-      fill: '#a5b4fc', 'font-size': '8',
+      fill: '#1B4FD8', 'font-size': '8',
       'font-family': 'Pretendard,Inter,sans-serif',
       'text-anchor': x > cx ? 'start' : 'end',
     });
     scoreLabel.textContent = (breakdown[k] || 0).toFixed(1);
     group.appendChild(scoreLabel);
-
     svg.appendChild(group);
 
-    // 축 이름 레이블 (외곽)
     const [lx, ly] = pt(i, r * 1.27);
     const lbl = svgEl('text', {
       x: lx, y: ly,
       'text-anchor': 'middle', 'dominant-baseline': 'middle',
-      fill: '#94a3b8', 'font-size': '9.5',
+      fill: '#4A5568', 'font-size': '9.5',
       'font-family': 'Pretendard,Inter,sans-serif',
     });
     lbl.textContent = k.replace(/_/g, ' ');
@@ -194,7 +207,193 @@ function renderBreakdown(breakdown) {
   });
 }
 
-/* ─── Competitors Table ───────────────────────── */
+/* ─── Verdict Card (DB 모드 전용) ────────────────── */
+const VERDICT_META = {
+  OVERPRICED:   { label: '⚠ OVERPRICED',   cls: 'verdict-overpriced',  desc: '동급 경쟁사 대비 가격이 높습니다' },
+  SLIGHT_HIGH:  { label: '↑ SLIGHT HIGH',  cls: 'verdict-slight-high', desc: '소폭 고가 구간입니다' },
+  FAIR:         { label: '✓ FAIR',          cls: 'verdict-fair',        desc: '가격 경쟁력이 적정합니다' },
+  GOOD_VALUE:   { label: '★ GOOD VALUE',   cls: 'verdict-good-value',  desc: '가성비가 우수합니다' },
+  COMPETITIVE:  { label: '⚡ COMPETITIVE', cls: 'verdict-competitive',  desc: '뛰어난 가격 경쟁력을 보입니다' },
+  NO_MATCH:     { label: '— NO MATCH',     cls: 'verdict-no-match',    desc: 'DB 내 비교 가능한 경쟁사가 없습니다' },
+};
+
+function renderVerdictCard(result) {
+  const agg = result.aggregate || {};
+  const samsung = result.samsung || {};
+  const verdict = agg.overall_verdict || 'NO_MATCH';
+  const meta = VERDICT_META[verdict] || VERDICT_META.NO_MATCH;
+  const cpi = agg.weighted_cpi || 0;
+
+  const section = document.getElementById('verdict-section');
+  const card = document.getElementById('verdict-card');
+
+  card.className = `verdict-card ${meta.cls}`;
+  section.classList.remove('hidden');
+
+  document.getElementById('verdict-badge').textContent = meta.label;
+  document.getElementById('verdict-summary').textContent = meta.desc;
+  document.getElementById('verdict-cpi-value').textContent = cpi > 0 ? cpi.toFixed(1) : '—';
+
+  const barEl = document.getElementById('verdict-cpi-bar');
+  const clampedPct = Math.min(Math.max((cpi / 150) * 100, 0), 100);
+  barEl.style.width = `${clampedPct}%`;
+
+  document.getElementById('verdict-model-name').textContent = samsung.model_name || '';
+  const specs = samsung.specs || {};
+  const size = specs.screen_size_inch ? `${specs.screen_size_inch}"` : (samsung.size ? `${samsung.size}"` : '');
+  const res  = specs.resolution || samsung.resolution || '';
+  const year = samsung.year ? ` · ${samsung.year}년형` : '';
+  document.getElementById('verdict-year-size').textContent = `${size}${res ? ' ' + res : ''}${year}`;
+  document.getElementById('verdict-price').textContent =
+    samsung.price ? `${samsung.price.toLocaleString()}원` : '';
+
+  // 판정 기준 아코디언 표시
+  document.getElementById('logic-accordion').classList.remove('hidden');
+
+  requestAnimationFrame(() => { card.classList.add('verdict-animate'); });
+}
+
+/* ─── 스펙 기준 배너 렌더링 ─────────────────────────── */
+function renderSpecBanner(samsungSpecs) {
+  const banner = document.getElementById('spec-banner');
+  if (!samsungSpecs) { banner.classList.add('hidden'); return; }
+
+  const chips = [];
+  if (samsungSpecs.screen_size_inch) chips.push(`📐 ${samsungSpecs.screen_size_inch}"`);
+  if (samsungSpecs.panel_type)       chips.push(`🖥 ${samsungSpecs.panel_type}`);
+  if (samsungSpecs.resolution)       chips.push(`🔲 ${samsungSpecs.resolution}`);
+  if (samsungSpecs.refresh_rate_hz)  chips.push(`⚡ ${samsungSpecs.refresh_rate_hz}Hz`);
+  if (samsungSpecs.hdr)              chips.push(`🌟 ${samsungSpecs.hdr}`);
+
+  banner.innerHTML = `
+    <span class="spec-banner-label">삼성 기준 스펙</span>
+    ${chips.map(c => `<span class="spec-chip">${c}</span>`).join('')}
+  `;
+  banner.classList.remove('hidden');
+}
+
+/* ─── DB 모드 경쟁사 테이블 ──────────────────────── */
+function cpiClass(cpi) {
+  if (cpi > 115) return 'cpi-over';
+  if (cpi > 105) return 'cpi-high';
+  if (cpi > 95)  return 'cpi-fair';
+  return 'cpi-good';
+}
+
+function verdictShortLabel(v) {
+  const short = { OVERPRICED: 'OVER', SLIGHT_HIGH: 'HIGH', FAIR: 'FAIR', GOOD_VALUE: 'GV', COMPETITIVE: 'COMP' };
+  return short[v] || v;
+}
+
+/* 삼성 기준 스펙 저장 (renderDbCompetitors에서 참조) */
+let _samsungSpecs = null;
+
+function renderDbCompetitors(matches, samsungSpecs) {
+  _samsungSpecs = samsungSpecs || null;
+  const tbody = document.getElementById('comp-tbody-db');
+  tbody.innerHTML = '';
+
+  document.getElementById('comp-count').textContent = `(${matches.length}개)`;
+  document.getElementById('competitors-section').classList.remove('hidden');
+  document.getElementById('sort-hint').textContent = '복합 매칭순 · 스펙유사도 40% + 연형근접 35% + 크기근접 15% + 패널 10%';
+
+  document.getElementById('comp-table-db').classList.remove('hidden');
+  document.getElementById('comp-table-live').classList.add('hidden');
+
+  // 스펙 기준 배너
+  renderSpecBanner(samsungSpecs);
+
+  matches.forEach((m) => {
+    const matchPct = m.match_score != null ? (m.match_score * 100).toFixed(0) : '-';
+    const adjPrice = m.adjusted_price ? `${Math.round(m.adjusted_price).toLocaleString()}원` : '-';
+    const realPrice = m.price ? `${m.price.toLocaleString()}원` : '-';
+    const scoreFmt = m.score != null ? m.score.toFixed(1) : '-';
+    const adjCpi = m.adjusted_cpi != null ? m.adjusted_cpi.toFixed(1) : '-';
+    const adjCpiCls = m.adjusted_cpi != null ? cpiClass(m.adjusted_cpi) : '';
+    const verdictLbl = verdictShortLabel(m.verdict || '');
+
+    // 스펙 매칭 칩 (삼성 기준 대비)
+    const specs = m.specs || {};
+    const specChips = buildSpecMatchChips(samsungSpecs, specs);
+
+    // 매칭 기여도 바
+    const contribBar = buildContribBar(m);
+
+    tbody.innerHTML += `
+      <tr class="db-row rank-${m.rank}">
+        <td><span class="rank-badge rank-${Math.min(m.rank, 10)}">${m.rank}</span></td>
+        <td class="model-cell" title="${m.model_name}">
+          ${m.model_name}
+          ${specChips ? `<div class="spec-match-chips">${specChips}</div>` : ''}
+        </td>
+        <td>${m.brand || '-'}</td>
+        <td class="price-real">${realPrice}</td>
+        <td class="price-adj" title="감가상각 조정 후 환산가">${adjPrice}</td>
+        <td>${m.year || '-'}</td>
+        <td><span class="score-chip ${m.score >= 70 ? 'score-high' : m.score >= 50 ? 'score-mid' : 'score-low'}">${scoreFmt}</span></td>
+        <td>
+          <div class="sim-bar-wrap">
+            <div class="sim-bar-fill" style="width:${matchPct}%"></div>
+            <span class="sim-pct">${matchPct}%</span>
+          </div>
+          ${contribBar}
+        </td>
+        <td><span class="cpi-chip ${adjCpiCls}">${adjCpi}</span></td>
+        <td><span class="verdict-mini verdict-mini-${(m.verdict||'').toLowerCase()}">${verdictLbl}</span></td>
+      </tr>`;
+  });
+}
+
+function buildSpecMatchChips(samsungSpecs, compSpecs) {
+  if (!samsungSpecs) return '';
+  const chips = [];
+
+  // 패널 비교
+  const sPanel = (samsungSpecs.panel_type || '').toLowerCase().trim();
+  const cPanel = (compSpecs.panel_type || '').toLowerCase().trim();
+  if (sPanel && cPanel) {
+    chips.push(sPanel === cPanel
+      ? `<span class="spec-match-chip spec-match-ok">✅ ${compSpecs.panel_type}</span>`
+      : `<span class="spec-match-chip spec-match-diff">❌ ${compSpecs.panel_type || '패널미상'}</span>`);
+  }
+
+  // 인치 비교
+  const sSize = samsungSpecs.screen_size_inch;
+  const cSize = compSpecs.screen_size_inch;
+  if (sSize != null && cSize != null) {
+    const diff = Math.abs(cSize - sSize);
+    const cls = diff === 0 ? 'spec-match-ok' : diff <= 2 ? 'spec-match-near' : 'spec-match-diff';
+    const icon = diff === 0 ? '✅' : diff <= 2 ? '⚠️' : '❌';
+    chips.push(`<span class="spec-match-chip ${cls}">${icon} ${cSize}"</span>`);
+  }
+
+  // Hz 비교
+  const sHz = samsungSpecs.refresh_rate_hz;
+  const cHz = compSpecs.refresh_rate_hz;
+  if (sHz != null && cHz != null) {
+    const cls = cHz >= sHz ? 'spec-match-ok' : cHz >= sHz * 0.8 ? 'spec-match-near' : 'spec-match-diff';
+    const icon = cHz >= sHz ? '✅' : cHz >= sHz * 0.8 ? '⚠️' : '❌';
+    chips.push(`<span class="spec-match-chip ${cls}">${icon} ${cHz}Hz</span>`);
+  }
+
+  return chips.join('');
+}
+
+function buildContribBar(m) {
+  const spec  = Math.round((m.spec_cosine_similarity  || 0) * 40);
+  const year  = Math.round((m.year_proximity          || 0) * 35);
+  const size  = Math.round((m.size_closeness          || 0) * 15);
+  const panel = Math.round((m.panel_type_bonus        || 0) * 10);
+  return `
+    <div class="match-contrib-bar" title="스펙${spec}% + 연형${year}% + 크기${size}% + 패널${panel}%">
+      <div class="contrib-seg contrib-spec"  style="flex:${spec}"></div>
+      <div class="contrib-seg contrib-year"  style="flex:${year}"></div>
+      <div class="contrib-seg contrib-size"  style="flex:${size}"></div>
+      <div class="contrib-seg contrib-panel" style="flex:${panel}"></div>
+    </div>`;
+}
+
+/* ─── 실시간 모드 경쟁사 테이블 ─────────────────── */
 function scoreClass(score) {
   if (score >= 80) return 'score-high';
   if (score >= 60) return 'score-mid';
@@ -206,6 +405,10 @@ function renderCompetitors(comps) {
   tbody.innerHTML = '';
   document.getElementById('comp-count').textContent = `(${comps.length}개)`;
   document.getElementById('competitors-section').classList.remove('hidden');
+  document.getElementById('sort-hint').textContent = '복합 랭킹순 · 인기 50% + 리뷰 30% + 유사도 20%';
+
+  document.getElementById('comp-table-live').classList.remove('hidden');
+  document.getElementById('comp-table-db').classList.add('hidden');
 
   comps.forEach((c, idx) => {
     const rank = c.rank ?? idx + 1;
@@ -245,13 +448,11 @@ function renderCompetitors(comps) {
 function renderDiffs(diffs) {
   const container = document.getElementById('verify-diffs');
   const entries = Object.entries(diffs);
-
   if (entries.length === 0) {
     container.classList.add('hidden');
     container.innerHTML = '';
     return;
   }
-
   container.classList.remove('hidden');
   container.innerHTML = `
     <div class="diffs-title">⚠️ 공식몰 기준으로 보정된 항목 (${entries.length}개)</div>
@@ -267,7 +468,149 @@ function renderDiffs(diffs) {
     </div>`;
 }
 
-/* ─── 단건 분석 메인 ────────────────────────────── */
+/* ══════════════════════════════════════════════════
+   DB 즉시 분석 모드
+   ══════════════════════════════════════════════════ */
+
+let _dbFilters = { sizes: [], resolutions: [], years: [] };
+
+async function loadDbFilters() {
+  try {
+    const data = await fetch(`${API}/api/tv/models`).then(r => r.json());
+    _dbFilters = data.filters || { sizes: [], resolutions: [], years: [] };
+
+    const sizeEl = document.getElementById('filter-size');
+    const resEl  = document.getElementById('filter-resolution');
+    const yearEl = document.getElementById('filter-year');
+
+    _dbFilters.sizes.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = `${s}"`;
+      sizeEl.appendChild(opt);
+    });
+    _dbFilters.resolutions.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r;
+      opt.textContent = r;
+      resEl.appendChild(opt);
+    });
+    _dbFilters.years.forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = `${y}년형`;
+      yearEl.appendChild(opt);
+    });
+
+    await refreshModelList(data.models || []);
+  } catch (e) {
+    console.warn('[DB 필터 로드 실패]', e);
+    document.getElementById('db-model-count').textContent = 'DB 연결 실패 — 실시간 모드를 이용해주세요';
+  }
+}
+
+async function onFilterChange() {
+  const size       = document.getElementById('filter-size').value;
+  const resolution = document.getElementById('filter-resolution').value;
+  const year       = document.getElementById('filter-year').value;
+
+  const params = new URLSearchParams();
+  if (size)       params.append('size', size);
+  if (resolution) params.append('resolution', resolution);
+  if (year)       params.append('year', year);
+
+  try {
+    const data = await fetch(`${API}/api/tv/models?${params}`).then(r => r.json());
+    await refreshModelList(data.models || []);
+  } catch (e) {
+    console.warn('[필터 적용 실패]', e);
+  }
+}
+
+async function refreshModelList(models) {
+  const sel = document.getElementById('model-select');
+  sel.innerHTML = '<option value="">— 삼성 TV 모델 선택 —</option>';
+  models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.model_name;
+    const sizeStr  = m.size ? `${m.size}"` : '';
+    const yearStr  = m.year ? ` ${m.year}년` : '';
+    const priceStr = m.price ? ` · ${m.price.toLocaleString()}원` : '';
+    opt.textContent = `${m.model_name}  ${sizeStr}${yearStr}${priceStr}`;
+    sel.appendChild(opt);
+  });
+
+  const countEl = document.getElementById('db-model-count');
+  countEl.textContent = models.length > 0
+    ? `${models.length}개 모델`
+    : '선택한 조건에 맞는 모델이 없습니다';
+}
+
+let _dbAnalyzing = false;
+
+async function startDbAnalysis() {
+  if (_dbAnalyzing) return;
+
+  const sel = document.getElementById('model-select');
+  const modelName = sel.value;
+  if (!modelName) { showToast('모델을 선택해주세요', true); return; }
+
+  _dbAnalyzing = true;
+  document.getElementById('btn-db-analyze').disabled = true;
+  document.getElementById('verdict-section').classList.add('hidden');
+  document.getElementById('result-card').classList.add('hidden');
+  document.getElementById('competitors-section').classList.add('hidden');
+
+  // 로딩 표시
+  document.getElementById('btn-db-analyze').querySelector('.btn-text').textContent = '분석 중…';
+
+  try {
+    const result = await fetch(`${API}/api/tv/match`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model_name: modelName }),
+    }).then(async r => {
+      if (r.ok) return r.json();
+      const text = await r.text();
+      let errBody;
+      try { errBody = JSON.parse(text); } catch { errBody = { detail: text }; }
+      // 404 = DB에 없음 → Fallback
+      if (r.status === 404) {
+        errBody._fallback = true;
+      }
+      return Promise.reject(errBody);
+    });
+
+    renderVerdictCard(result);
+
+    if (result.matches && result.matches.length > 0) {
+      renderDbCompetitors(result.matches, result.samsung?.specs || null);
+    } else {
+      document.getElementById('competitors-section').classList.add('hidden');
+      document.getElementById('spec-banner').classList.add('hidden');
+    }
+
+  } catch (err) {
+    if (err._fallback) {
+      // DB에 없음 → 실시간 모드로 자동 전환
+      showToast('DB에 해당 모델이 없어 실시간 분석으로 전환합니다…');
+      switchMode('live');
+      document.getElementById('model-input').value = modelName;
+      setTimeout(() => startAnalysis(), 800);
+    } else {
+      showToast(`오류: ${err.detail || err.message || '알 수 없는 오류'}`, true);
+      console.error(err);
+    }
+  } finally {
+    _dbAnalyzing = false;
+    document.getElementById('btn-db-analyze').disabled = false;
+    document.getElementById('btn-db-analyze').querySelector('.btn-text').textContent = '즉시 분석';
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   실시간 크롤링 모드 (기존 7단계)
+   ══════════════════════════════════════════════════ */
 let _analyzing = false;
 
 async function startAnalysis() {
@@ -280,6 +623,7 @@ async function startAnalysis() {
   document.getElementById('btn-analyze').disabled = true;
   document.getElementById('result-card').classList.add('hidden');
   document.getElementById('competitors-section').classList.add('hidden');
+  document.getElementById('verdict-section').classList.add('hidden');
 
   try {
     // Step 1: 다나와 검색
@@ -331,7 +675,7 @@ async function startAnalysis() {
       return Promise.reject(errBody);
     });
 
-    // ─ 삼성 결과 카드 표시 ─
+    // 삼성 결과 카드 표시
     document.getElementById('result-card').classList.remove('hidden');
     document.getElementById('result-category-badge').textContent = category.toUpperCase();
     document.getElementById('result-model-name').textContent = modelName;
@@ -359,7 +703,6 @@ async function startAnalysis() {
     setProgress('Step 4/7: 다나와에서 경쟁사 탐색 중…', 55, 4);
     let competitorRes = { competitors: [] };
     try {
-      // 출시년도 자동 추출 (raw_spec 또는 finalSpec 에서)
       const releaseYear = finalSpec.release_year
         || parseInt(searchRes.raw_spec?.__release_year__ || '0') || null;
 
@@ -370,16 +713,16 @@ async function startAnalysis() {
           category,
           samsung_spec: finalSpec,
           primary_spec_filter: {},
-          category_url: '',   // 비워두면 서버에서 자동 생성
+          category_url: '',
           release_year: releaseYear,
         }),
       }).then(async r => {
-      if (r.ok) return r.json();
-      const text = await r.text();
-      let errBody;
-      try { errBody = JSON.parse(text); } catch { errBody = { detail: text }; }
-      return Promise.reject(errBody);
-    });
+        if (r.ok) return r.json();
+        const text = await r.text();
+        let errBody;
+        try { errBody = JSON.parse(text); } catch { errBody = { detail: text }; }
+        return Promise.reject(errBody);
+      });
     } catch (e) {
       console.warn('[경쟁사 탐색 실패, 계속 진행]', e);
     }
@@ -401,12 +744,12 @@ async function startAnalysis() {
             samsung_spec: finalSpec,
           }),
         }).then(async r => {
-      if (r.ok) return r.json();
-      const text = await r.text();
-      let errBody;
-      try { errBody = JSON.parse(text); } catch { errBody = { detail: text }; }
-      return Promise.reject(errBody);
-    });
+          if (r.ok) return r.json();
+          const text = await r.text();
+          let errBody;
+          try { errBody = JSON.parse(text); } catch { errBody = { detail: text }; }
+          return Promise.reject(errBody);
+        });
         verifiedComps = compVerifyRes.competitors;
         if (compVerifyRes.rescored) {
           showToast('공식몰 스펙 보정 후 재채점/재랭킹이 적용되었습니다.');
@@ -433,12 +776,13 @@ async function startAnalysis() {
   }
 }
 
-// Enter 키 지원
 document.getElementById('model-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') startAnalysis();
 });
 
-/* ─── 배치 업로드 ─────────────────────────────── */
+/* ══════════════════════════════════════════════════
+   CSV 배치 처리
+   ══════════════════════════════════════════════════ */
 let _selectedFile = null;
 let _currentJobId = null;
 let _pollTimer = null;
@@ -465,16 +809,13 @@ async function uploadBatch() {
   if (!_selectedFile) return;
   const formData = new FormData();
   formData.append('file', _selectedFile);
-
   try {
     document.getElementById('btn-batch-upload').disabled = true;
     const res = await fetch(`${API}/api/batch/upload`, { method: 'POST', body: formData }).then(r => r.json());
-
     _currentJobId = res.job_id;
     document.getElementById('batch-status-section').classList.remove('hidden');
     document.getElementById('batch-job-id-display').textContent = `Job ID: ${_currentJobId}`;
     startPolling();
-
   } catch (err) {
     showToast('업로드 실패: ' + (err.detail || err.message), true);
     document.getElementById('btn-batch-upload').disabled = false;
@@ -494,7 +835,6 @@ function startPolling() {
 }
 
 function updateBatchUI(st) {
-  // 상태 chip
   const chip = document.getElementById('batch-status-label');
   chip.textContent = st.status;
   chip.className = 'batch-status-chip';
@@ -509,11 +849,9 @@ function updateBatchUI(st) {
   chip.style.cssText = (chipStyles[st.status] || chipStyles.QUEUED)
     + ';padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:700';
 
-  // 진행 카운트 + 바
   document.getElementById('batch-progress-text').textContent = `${st.processed} / ${st.total}`;
   document.getElementById('batch-progress-bar').style.width = `${st.progress_pct}%`;
 
-  // 에러 카운트
   const errCount = document.getElementById('batch-error-count');
   if (st.error_count > 0) {
     errCount.classList.remove('hidden');
@@ -522,7 +860,6 @@ function updateBatchUI(st) {
     renderErrorList(st.errors || []);
   }
 
-  // ETA
   const etaEl = document.getElementById('batch-eta');
   const etaSep = document.getElementById('eta-sep');
   if (st.eta_seconds != null && st.status === 'RUNNING') {
@@ -534,7 +871,6 @@ function updateBatchUI(st) {
     etaSep.classList.add('hidden');
   }
 
-  // 현재 처리 중인 모델명
   const curModel = document.getElementById('batch-current-model');
   if (st.current_model && st.status === 'RUNNING') {
     curModel.classList.remove('hidden');
@@ -588,11 +924,5 @@ async function cancelBatch() {
 /* ─── 유틸 ────────────────────────────────────── */
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function getRulesCategoryId(category) {
-  const map = {
-    tv: '112', refrigerator: '107', washer: '108', dryer: '119',
-    air_conditioner: '109', dishwasher: '254', air_purifier: '110',
-    vacuum: '115', robot_vacuum: '572', microwave: '113', monitor: '102',
-  };
-  return map[category] || '112';
-}
+/* ─── 초기화 ──────────────────────────────────── */
+loadDbFilters();

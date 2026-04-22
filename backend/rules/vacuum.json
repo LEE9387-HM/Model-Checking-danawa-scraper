@@ -2,15 +2,43 @@
   "category": "vacuum",
   "display_name": "청소기",
   "danawa_category_id": "115",
-  "primary_specs": ["vacuum_type", "wired_wireless"],
-  "meta_specs": ["release_year", "brand", "price", "review_count"],
+  "primary_specs": [
+    "vacuum_type",
+    "wired_wireless",
+    "release_year"
+  ],
+  "meta_specs": [
+    "brand",
+    "price",
+    "review_count"
+  ],
   "grading_specs": {
-    "suction_power_w":  { "weight": 0.30, "direction": "higher_better", "unit": "W" },
-    "battery_mah":      { "weight": 0.25, "direction": "higher_better", "unit": "mAh" },
-    "dust_bin_l":       { "weight": 0.20, "direction": "higher_better", "unit": "L" },
-    "noise_level":      { "weight": 0.15, "direction": "lower_better", "unit": "dB" },
-    "accessory_count":  { "weight": 0.10, "direction": "higher_better", "unit": "개" }
+    "suction_power_w": {
+      "weight": 0.3,
+      "direction": "higher_better",
+      "unit": "W"
+    },
+    "battery_mah": {
+      "weight": 0.25,
+      "direction": "higher_better",
+      "unit": "mAh"
+    },
+    "dust_bin_l": {
+      "weight": 0.2,
+      "direction": "higher_better",
+      "unit": "L"
+    },
+    "noise_level": {
+      "weight": 0.15,
+      "direction": "lower_better",
+      "unit": "dB"
+    },
+    "accessory_count": {
+      "weight": 0.1,
+      "direction": "higher_better",
+      "unit": "개"
+    }
   },
-  "year_filter_range": 2,
+  "year_filter_range": 0,
   "notes": "가중치 합계: 1.00"
 }

@@ -2,36 +2,57 @@
   "category": "tv",
   "display_name": "TV",
   "danawa_category_id": "112",
-  "primary_specs": ["screen_size", "panel_type", "resolution"],
-  "meta_specs": ["release_year", "brand", "price", "review_count"],
+  "primary_specs": [
+    "screen_size",
+    "panel_type",
+    "resolution",
+    "release_year"
+  ],
+  "meta_specs": [
+    "brand",
+    "price",
+    "review_count"
+  ],
   "grading_specs": {
     "refresh_rate": {
       "weight": 0.25,
       "direction": "higher_better",
       "unit": "Hz",
-      "levels": { "60": 3, "100": 5, "120": 7, "144": 9, "240": 10 }
+      "levels": {
+        "60": 3,
+        "100": 5,
+        "120": 7,
+        "144": 9,
+        "240": 10
+      }
     },
     "hdr": {
       "weight": 0.15,
       "direction": "higher_better",
       "levels": {
-        "미지원": 0, "HDR10": 5, "HDR10+": 7, "돌비비전": 10
+        "미지원": 0,
+        "HDR10": 5,
+        "HDR10+": 7,
+        "돌비비전": 10
       }
     },
     "smart_features": {
       "weight": 0.15,
       "direction": "higher_better",
       "levels": {
-        "미지원": 0, "기본": 5, "AI": 8, "풀스마트": 10
+        "미지원": 0,
+        "기본": 5,
+        "AI": 8,
+        "풀스마트": 10
       }
     },
     "speaker_output": {
-      "weight": 0.10,
+      "weight": 0.1,
       "direction": "higher_better",
       "unit": "W"
     },
     "dolby_atmos": {
-      "weight": 0.10,
+      "weight": 0.1,
       "direction": "boolean",
       "true_value": 10,
       "false_value": 0
@@ -40,15 +61,19 @@
       "weight": 0.15,
       "direction": "lower_better",
       "levels": {
-        "1등급": 10, "2등급": 7, "3등급": 5, "4등급": 3, "5등급": 1
+        "1등급": 10,
+        "2등급": 7,
+        "3등급": 5,
+        "4등급": 3,
+        "5등급": 1
       }
     },
     "design_thinness": {
-      "weight": 0.10,
+      "weight": 0.1,
       "direction": "lower_better",
       "unit": "mm"
     }
   },
-  "year_filter_range": 2,
+  "year_filter_range": 0,
   "notes": "가중치 합계: 0.25+0.15+0.15+0.10+0.10+0.15+0.10 = 1.00"
 }

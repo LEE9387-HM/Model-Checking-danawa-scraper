@@ -17,51 +17,62 @@
   },
   "selectors": {
     "search_first_result": [
+      "a.click_log_product_standard_title_",
+      "a.click_log_product_searched_title_",
+      "a.click_log_product_vstandard_title_",
       ".prod-list .prod-item:first-child .prod-name a",
-      ".prod_list .prod_item:first-child .prod_name a",
-      ".product_list .prod_item:first-child .prod_name a"
+      ".prod_list .prod_item:first-child .prod_name a"
     ],
     "product_list_item": [
-      ".prod_list .prod_item",
-      ".product_list .prod_item",
-      ".prod-list .prod-item"
+      ".prod_main_info",
+      ".prod_item",
+      ".prod-item",
+      ".product-list__item"
     ],
     "product_list_name": [
       ".prod_name a",
-      ".prod-name a"
+      ".prod-name a",
+      "a.click_log_product_standard_title_",
+      "a.click_log_product_searched_title_"
     ],
     "product_list_price": [
+      ".click_log_product_standard_price_ strong",
+      ".click_log_product_searched_price_ strong",
       ".price_sect strong",
-      ".prc_t",
-      ".lowest_price strong"
+      ".prc_t"
     ],
     "product_list_review": [
+      ".click_log_product_standard_review_",
+      ".click_log_product_searched_review_",
       ".cnt_rev",
-      ".cmt_count",
-      ".danawa-review-count",
-      ".cnt_review"
+      ".cmt_count"
     ],
     "spec_row": [
       ".spec-descr-item",
-      ".spec_list tr"
+      ".spec_list tr",
+      "div.spec_draw u",
+      ".spec_list"
     ],
     "spec_label": [
       ".spec-descr-item__title",
-      "th"
+      "th",
+      "dt"
     ],
     "spec_value": [
       ".spec-descr-item__desc",
-      "td"
+      "td",
+      "dd"
     ],
     "price": [
       ".lowest_price strong",
-      ".pricelist-item__price-link",
-      ".prc_t"
+      ".link__sell-price span:first-child",
+      ".click_log_product_standard_price_ strong",
+      ".pricelist-item__price-link"
     ],
     "review_count": [
       ".cnt_review",
-      ".cmt_count",
-      ".danawa-review-count"
+      ".click_log_product_standard_review_",
+      ".cmt_count"
     ],
     "brand": [
       "th:contains('제조회사') + td",

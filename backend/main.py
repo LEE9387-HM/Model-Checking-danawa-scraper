@@ -1,6 +1,6 @@
 """
 main.py — FastAPI 백엔드 서버
-7단계 파이프라인 API + CSV 배치 처리 API + 정적 프론트엔드 서빙
+7단계 파이프라인 API + CSV 배치 처리 API + TV DB 매칭 API + 정적 프론트엔드 서빙
 """
 import asyncio
 import sys
@@ -14,7 +14,7 @@ import io
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,6 +31,7 @@ from verifier import verify_samsung, verify_competitor
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 RULES_DIR = Path(__file__).parent / "rules"
+TV_DB_PATH = Path(__file__).parent / "tv_db" / "tv_products.db"
 
 
 # ─── Request / Response 스키마 ───────────────────────────────────────────────
@@ -53,6 +54,8 @@ class ScoreRequest(BaseModel):
 class CompetitorsRequest(BaseModel):
     category: str
     samsung_spec: dict[str, Any]
+    samsung_price: int = 0
+    samsung_score: float = 0.0
     primary_spec_filter: dict[str, Any] = {}
     category_url: str = ""
     release_year: int | None = None
@@ -62,6 +65,14 @@ class CompetitorVerifyRequest(BaseModel):
     category: str
     competitors: list[dict[str, Any]]
     samsung_spec: dict[str, Any] = {}
+    samsung_price: int = 0
+    samsung_score: float = 0.0
+
+
+# ─── TV DB 매칭 API 스키마 ────────────────────────────────────────────────────
+
+class TVMatchRequest(BaseModel):
+    model_name: str
 
 
 # ─── Lifespan ───────────────────────────────────────────────────────────────
@@ -169,12 +180,26 @@ async def api_competitors(req: CompetitorsRequest):
 
     # 유사도 필터 + 복합 랭킹
     ranked = filter_and_rank(
-        samsung_spec=req.samsung_spec,
+        samsung_data={
+            "spec": req.samsung_spec,
+            "price": req.samsung_price,
+            "score": {"total_score": req.samsung_score}
+        },
         competitors=competitors,
-        spec_names=grading_spec_names,
+        rules=rules,
         similarity_threshold=0.75,
         top_n=10,
     )
+
+    # 7단계 가격 적정성 판정 추가
+    from price_intelligence import get_price_adequacy_verdict
+    for item in ranked:
+        comp_score = item.get("score", {}).get("total_score", 0)
+        item["analysis"] = get_price_adequacy_verdict(
+            cpi=item["cpi"],
+            score_diff=req.samsung_score - comp_score
+        )
+
     return {"competitors": ranked, "total_found": len(competitors)}
 
 
@@ -212,12 +237,25 @@ async def api_competitors_verify(req: CompetitorVerifyRequest):
 
         # 재랭킹
         verified = filter_and_rank(
-            samsung_spec=req.samsung_spec,
+            samsung_data={
+                "spec": req.samsung_spec,
+                "price": req.samsung_price,
+                "score": {"total_score": req.samsung_score}
+            },
             competitors=verified,
-            spec_names=grading_spec_names,
+            rules=rules,
             similarity_threshold=0.0,   # 이미 1차 필터 통과한 목록
             top_n=len(verified),
         )
+
+        # 판정 업데이트
+        from price_intelligence import get_price_adequacy_verdict
+        for item in verified:
+            comp_score = item.get("score", {}).get("total_score", 0)
+            item["analysis"] = get_price_adequacy_verdict(
+                cpi=item["cpi"],
+                score_diff=req.samsung_score - comp_score
+            )
 
     return {"competitors": verified, "rescored": corrected_any}
 
@@ -309,6 +347,152 @@ async def batch_cancel(job_id: str):
     if not ok:
         raise HTTPException(status_code=404, detail="Job 없음")
     return {"message": "취소 요청 완료", "job_id": job_id}
+
+
+# ─── TV DB 매칭 API ──────────────────────────────────────────────────────────
+
+@app.get("/api/tv/models", summary="삼성 TV 모델 목록 조회 (드롭다운용)")
+async def api_tv_models(
+    size: Optional[float] = None,
+    resolution: Optional[str] = None,
+    year: Optional[int] = None,
+):
+    """
+    DB에 존재하는 삼성 TV 모델 목록과 필터 옵션(화면크기·해상도·연형)을 반환합니다.
+    - size / resolution / year 를 조합해 삼성 모델 목록을 좁혀줍니다.
+    """
+    from tv_db.db_manager import TVDatabaseManager
+
+    if not TV_DB_PATH.exists():
+        raise HTTPException(status_code=503, detail="TV DB가 아직 준비되지 않았습니다")
+
+    db = TVDatabaseManager(TV_DB_PATH)
+    try:
+        conn = db.connection
+
+        # 필터 옵션 목록 — 삼성 모델 전체 기준
+        sizes = [
+            row[0] for row in conn.execute(
+                "SELECT DISTINCT screen_size_inch FROM tv_products "
+                "WHERE (manufacturer IN ('삼성전자','Samsung','SAMSUNG') OR brand LIKE '%삼성%' OR brand LIKE '%Samsung%') "
+                "AND screen_size_inch IS NOT NULL ORDER BY screen_size_inch"
+            ).fetchall()
+        ]
+        resolutions = [
+            row[0] for row in conn.execute(
+                "SELECT DISTINCT resolution FROM tv_products "
+                "WHERE (manufacturer IN ('삼성전자','Samsung','SAMSUNG') OR brand LIKE '%삼성%' OR brand LIKE '%Samsung%') "
+                "AND resolution IS NOT NULL ORDER BY resolution"
+            ).fetchall()
+        ]
+        years = [
+            row[0] for row in conn.execute(
+                "SELECT DISTINCT release_year FROM tv_products "
+                "WHERE (manufacturer IN ('삼성전자','Samsung','SAMSUNG') OR brand LIKE '%삼성%' OR brand LIKE '%Samsung%') "
+                "AND release_year IS NOT NULL ORDER BY release_year DESC"
+            ).fetchall()
+        ]
+
+        # 조건부 모델 목록
+        conditions = [
+            "(manufacturer IN ('삼성전자','Samsung','SAMSUNG') OR brand LIKE '%삼성%' OR brand LIKE '%Samsung%')"
+        ]
+        params: list[Any] = []
+        if size is not None:
+            conditions.append("ABS(screen_size_inch - ?) <= 0.1")
+            params.append(size)
+        if resolution:
+            conditions.append("resolution = ?")
+            params.append(resolution)
+        if year is not None:
+            conditions.append("release_year = ?")
+            params.append(year)
+
+        where = " AND ".join(conditions)
+        models_raw = conn.execute(
+            f"SELECT model_name, screen_size_inch, resolution, release_year, current_price "
+            f"FROM tv_products WHERE {where} ORDER BY release_year DESC, model_name",
+            params,
+        ).fetchall()
+
+        models = [
+            {
+                "model_name": row[0],
+                "size": row[1],
+                "resolution": row[2],
+                "year": row[3],
+                "price": row[4],
+            }
+            for row in models_raw
+        ]
+
+        return {
+            "filters": {"sizes": sizes, "resolutions": resolutions, "years": years},
+            "models": models,
+            "total": len(models),
+        }
+    finally:
+        db.close()
+
+
+@app.post("/api/tv/match", summary="TV DB 매칭 — 1초 경쟁력 분석")
+async def api_tv_match(req: TVMatchRequest):
+    """
+    DB에서 삼성 모델을 조회하고 감가상각 기반 경쟁사 Top 5와 Verdict(OVERPRICED 등)를 반환.
+    DB에 모델이 없으면 404를 반환합니다 (프론트엔드가 Fallback 실시간 크롤링으로 전환).
+    """
+    from tv_db.db_manager import TVDatabaseManager
+    from tv_db.match_engine import (
+        find_samsung_model,
+        find_candidates,
+        score_candidates,
+        rank_candidates,
+        evaluate_competitiveness,
+    )
+
+    if not TV_DB_PATH.exists():
+        raise HTTPException(status_code=503, detail="TV DB가 아직 준비되지 않았습니다")
+
+    db = TVDatabaseManager(TV_DB_PATH)
+    try:
+        samsung_row = find_samsung_model(db, req.model_name)
+        if samsung_row is None:
+            raise HTTPException(status_code=404, detail=f"DB에 모델 없음: {req.model_name}")
+
+        candidate_rows = find_candidates(db, samsung_row)
+        if not candidate_rows:
+            # 후보가 없어도 삼성 모델 정보는 반환 (NO_MATCH verdict)
+            return {
+                "samsung": {
+                    "model_name": samsung_row.get("model_name"),
+                    "price": samsung_row.get("current_price", 0),
+                    "score": 0.0,
+                    "year": samsung_row.get("release_year"),
+                    "size": samsung_row.get("screen_size_inch"),
+                    "resolution": samsung_row.get("resolution"),
+                    "panel_type": samsung_row.get("panel_type"),
+                },
+                "matches": [],
+                "aggregate": {
+                    "weighted_cpi": 0.0,
+                    "overall_verdict": "NO_MATCH",
+                    "summary": "DB 내 비교 가능한 경쟁사 모델이 없습니다.",
+                },
+            }
+
+        samsung_scored, candidates_scored = score_candidates(samsung_row, candidate_rows)
+        top_candidates = rank_candidates(samsung_scored, candidates_scored, top_n=5)
+        result = evaluate_competitiveness(samsung_scored, top_candidates)
+
+        # 삼성 모델 추가 정보 보강
+        result["samsung"]["size"] = samsung_row.get("screen_size_inch")
+        result["samsung"]["resolution"] = samsung_row.get("resolution")
+        result["samsung"]["panel_type"] = samsung_row.get("panel_type")
+        result["samsung"]["brand"] = samsung_row.get("brand") or samsung_row.get("manufacturer")
+
+        return result
+    finally:
+        db.close()
 
 
 # ─── 테스트 ─────────────────────────────────────────────────────────────────

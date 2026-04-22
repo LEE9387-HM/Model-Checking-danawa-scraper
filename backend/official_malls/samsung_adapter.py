@@ -68,6 +68,20 @@ class SamsungAdapter(BaseAdapter):
                         if k and v:
                             result[k] = v
 
+                # 5) 가격 추출 (신규)
+                price_selectors: list[str] = sel["selectors"].get("price", [])
+                for p_sel in price_selectors:
+                    try:
+                        p_el = await page.query_selector(p_sel)
+                        if p_el:
+                            p_text = await p_el.inner_text()
+                            nums = "".join(filter(str.isdigit, p_text))
+                            if nums:
+                                result["__price__"] = nums
+                                break
+                    except Exception:
+                        continue
+
             except Exception as e:
                 print(f"[samsung_adapter] 크롤링 오류: {e}")
             finally:

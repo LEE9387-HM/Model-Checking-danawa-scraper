@@ -2,15 +2,53 @@
   "category": "robot_vacuum",
   "display_name": "로봇청소기",
   "danawa_category_id": "572",
-  "primary_specs": ["suction_pa", "mopping"],
-  "meta_specs": ["release_year", "brand", "price", "review_count"],
+  "primary_specs": [
+    "suction_pa",
+    "mopping",
+    "release_year"
+  ],
+  "meta_specs": [
+    "brand",
+    "price",
+    "review_count"
+  ],
   "grading_specs": {
-    "mapping_type":   { "weight": 0.25, "direction": "higher_better", "levels": { "랜덤": 2, "자이로": 5, "레이저": 8, "카메라+레이저": 10 } },
-    "battery_min":    { "weight": 0.20, "direction": "higher_better", "unit": "분" },
-    "auto_empty":     { "weight": 0.25, "direction": "boolean", "true_value": 10, "false_value": 0 },
-    "noise_level":    { "weight": 0.15, "direction": "lower_better", "unit": "dB" },
-    "smart_features": { "weight": 0.15, "direction": "higher_better", "levels": { "미지원": 0, "기본": 5, "AI": 10 } }
+    "mapping_type": {
+      "weight": 0.25,
+      "direction": "higher_better",
+      "levels": {
+        "랜덤": 2,
+        "자이로": 5,
+        "레이저": 8,
+        "카메라+레이저": 10
+      }
+    },
+    "battery_min": {
+      "weight": 0.2,
+      "direction": "higher_better",
+      "unit": "분"
+    },
+    "auto_empty": {
+      "weight": 0.25,
+      "direction": "boolean",
+      "true_value": 10,
+      "false_value": 0
+    },
+    "noise_level": {
+      "weight": 0.15,
+      "direction": "lower_better",
+      "unit": "dB"
+    },
+    "smart_features": {
+      "weight": 0.15,
+      "direction": "higher_better",
+      "levels": {
+        "미지원": 0,
+        "기본": 5,
+        "AI": 10
+      }
+    }
   },
-  "year_filter_range": 2,
+  "year_filter_range": 0,
   "notes": "가중치 합계: 1.00"
 }

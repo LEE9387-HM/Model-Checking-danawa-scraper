@@ -1,0 +1,117 @@
+{
+  "label_aliases": {
+    "제조회사": "manufacturer",
+    "제조사": "manufacturer",
+    "브랜드": "manufacturer",
+    "등록년월": "release_period",
+    "년형": "model_year",
+    "화면종류": "display_family",
+    "디스플레이": "panel_type",
+    "패널": "panel_variant",
+    "해상도": "resolution",
+    "주사율": "refresh_rate",
+    "OS": "operating_system",
+    "게임종류": "operating_system",
+    "스피커": "speaker_config",
+    "출력": "speaker_output",
+    "AI음성인식": "voice_feature_or_shifted_value",
+    "유튜브": "youtube_or_shifted_value",
+    "넷플릭스": "netflix_or_shifted_value",
+    "게임모드": "game_mode_or_shifted_value"
+  },
+  "value_aliases": {
+    "operating_system": {
+      "타이젠": "Tizen",
+      "Tizen": "Tizen",
+      "웹OS 25": "webOS",
+      "웹OS 26": "webOS",
+      "webOS": "webOS",
+      "구글5.0": "Google TV",
+      "구글3.0": "Google TV",
+      "Google TV": "Google TV",
+      "안드로이드 11": "Android TV",
+      "안드로이드 13": "Android TV",
+      "안드로이드 14": "Android TV",
+      "안드로이드": "Android TV"
+    },
+    "resolution": {
+      "4K UHD": "4K UHD",
+      "FHD": "FHD",
+      "HD": "HD"
+    }
+  },
+  "suspicious_value_rules": [
+    {
+      "label": "operating_system",
+      "reject_exact": [
+        "○"
+      ],
+      "reason": "boolean marker should not be stored as an OS value"
+    },
+    {
+      "label": "operating_system",
+      "contains_any": [
+        "W",
+        "채널",
+        "mm",
+        "kg"
+      ],
+      "reason": "dimensions, weights, and speaker values should not be stored as an OS value"
+    },
+    {
+      "label": "speaker_config",
+      "reject_exact": [
+        "○"
+      ],
+      "reason": "boolean marker should not be stored as a speaker configuration"
+    },
+    {
+      "label": "speaker_output",
+      "reject_exact": [
+        "○"
+      ],
+      "reason": "boolean marker should not be stored as a speaker output"
+    },
+    {
+      "label": "voice_feature_or_shifted_value",
+      "contains_any": [
+        "W",
+        "채널",
+        "개"
+      ],
+      "reason": "this often indicates a shifted speaker field"
+    },
+    {
+      "label": "youtube_or_shifted_value",
+      "contains_any": [
+        "W",
+        "채널",
+        "개"
+      ],
+      "reason": "streaming app labels often receive shifted speaker values"
+    },
+    {
+      "label": "netflix_or_shifted_value",
+      "contains_any": [
+        "W",
+        "채널",
+        "개"
+      ],
+      "reason": "streaming app labels often receive shifted speaker values"
+    },
+    {
+      "label": "game_mode_or_shifted_value",
+      "contains_any": [
+        "W",
+        "채널",
+        "개"
+      ],
+      "reason": "game-mode labels sometimes receive shifted speaker values"
+    }
+  ],
+  "notes": [
+    "Keep this file additive and evidence-driven.",
+    "Do not delete ambiguous aliases until repeated crawl evidence confirms they are wrong.",
+    "Use preview mode in re_normalize.py before adding any destructive write path."
+  ]
+}

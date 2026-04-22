@@ -17,9 +17,11 @@ SELECTORS_DIR = Path(__file__).parent / "selectors"
 # ─── 상태 Enum ───────────────────────────────────────────────────────────────
 
 class VerifyStatus(str, Enum):
-    VERIFIED   = "VERIFIED"
-    CORRECTED  = "CORRECTED"
-    UNVERIFIED = "UNVERIFIED"
+    VERIFIED        = "VERIFIED"        # 공식몰 일치
+    CORRECTED       = "CORRECTED"       # 공식몰 기준 보정
+    VERIFIED_NAVER  = "VERIFIED_NAVER"  # 네이버 스토어 일치
+    CORRECTED_NAVER = "CORRECTED_NAVER" # 네이버 스토어 기준 보정
+    UNVERIFIED      = "UNVERIFIED"      # 검증 실패
 
 
 # ─── 카테고리별 KEY_MAP (다나와 키 → 삼성/LG 공식몰 라벨) ───────────────────
@@ -119,26 +121,25 @@ def _diff_specs(
 ) -> dict[str, dict]:
     """
     다나와 스펙과 공식몰 스펙을 key_map 기준으로 대조.
-
-    Returns:
-        {
-            danawa_key: {
-                "danawa": <다나와 값>,
-                "official": <공식몰 값>,
-                "official_label": <공식몰 라벨>,
-                "corrected": True,
-            },
-            ...
-        }
     """
     diffs: dict[str, dict] = {}
     for danawa_key, official_label in key_map.items():
-        d_val = str(danawa_spec.get(danawa_key, "")).strip()
-        o_val = str(official_spec.get(official_label, "")).strip()
-        if o_val and d_val != o_val:
+        original_d = danawa_spec.get(danawa_key, "")
+        original_o = official_spec.get(official_label, "")
+        
+        d_val = str(original_d).strip().lower()
+        o_val = str(original_o).strip().lower()
+        
+        if not o_val:
+            continue # 공식몰에 데이터가 없으면 기준 데이터로 삼을 수 없음
+
+        # 동일성 판단 (단순 lowercase 비교)
+        # 만약 "2024년형" vs "2024" 처럼 포함관계가 의미있다면 추가 정규화 필요
+        # 현재는 빈 값 처리 및 정확한 매칭을 위해 d_val != o_val 사용
+        if d_val != o_val:
             diffs[danawa_key] = {
-                "danawa":         d_val,
-                "official":       o_val,
+                "danawa":         original_d,
+                "official":       original_o,
                 "official_label": official_label,
                 "corrected":      True,
             }
@@ -160,34 +161,50 @@ async def verify_samsung(
     category: str = "tv",
 ) -> dict[str, Any]:
     """
-    삼성 공식몰 교차검증.
-
-    Returns:
-        {
-            "status":         "VERIFIED" | "CORRECTED" | "UNVERIFIED",
-            "corrected_spec": {...},
-            "diffs":          {...},   # 변경된 항목만
-        }
+    삼성 모델 교차검증 (Waterfall 패턴).
+    1차: 삼성 공식몰 -> 2차: 네이버 브랜드스토어 -> 3차: UNVERIFIED
     """
+    key_map = _get_key_map(category)
+    
+    # 1단계: 삼성 공식몰
     adapter = SamsungAdapter()
     official = await adapter.fetch(model_name)
 
-    if not official:
+    if official:
+        diffs = _diff_specs(danawa_spec, official, key_map)
+        corrected_spec = _apply_diffs(danawa_spec, diffs)
+        status = VerifyStatus.CORRECTED if diffs else VerifyStatus.VERIFIED
         return {
-            "status":         VerifyStatus.UNVERIFIED,
-            "corrected_spec": danawa_spec.copy(),
-            "diffs":          {},
+            "status":         status,
+            "source":         "samsung.com",
+            "confidence":     "high",
+            "corrected_spec": corrected_spec,
+            "diffs":          diffs,
         }
 
-    key_map = _get_key_map(category)
-    diffs = _diff_specs(danawa_spec, official, key_map)
-    corrected_spec = _apply_diffs(danawa_spec, diffs)
-    status = VerifyStatus.CORRECTED if diffs else VerifyStatus.VERIFIED
+    # 2단계: 네이버 브랜드스토어 (삼성전자)
+    naver_adapter = NaverStoreAdapter(brand="삼성전자")
+    naver_official = await naver_adapter.fetch(model_name)
 
+    if naver_official:
+        diffs = _diff_specs(danawa_spec, naver_official, key_map)
+        corrected_spec = _apply_diffs(danawa_spec, diffs)
+        status = VerifyStatus.CORRECTED_NAVER if diffs else VerifyStatus.VERIFIED_NAVER
+        return {
+            "status":         status,
+            "source":         "naver_store",
+            "confidence":     "medium",
+            "corrected_spec": corrected_spec,
+            "diffs":          diffs,
+        }
+
+    # 3단계: 검증 불가
     return {
-        "status":         status,
-        "corrected_spec": corrected_spec,
-        "diffs":          diffs,
+        "status":         VerifyStatus.UNVERIFIED,
+        "source":         "none",
+        "confidence":     "low",
+        "corrected_spec": danawa_spec.copy(),
+        "diffs":          {},
     }
 
 
@@ -198,34 +215,56 @@ async def verify_competitor(
     category: str = "tv",
 ) -> dict[str, Any]:
     """
-    LG/기타 경쟁사 공식몰 교차검증.
-    LG는 직접 어댑터, 나머지는 네이버 브랜드스토어로 fallback.
-
-    Returns: verify_samsung과 동일한 구조
+    경쟁사 모델 교차검증.
     """
     brand_lower = brand.lower()
+    key_map = _get_key_map(category)
+    source = "none"
+    confidence = "low"
+    
+    official = None
 
     if "lg" in brand_lower or "엘지" in brand_lower:
         adapter = LgAdapter()
         official = await adapter.fetch(model_name)
+        source = "lge.co.kr"
+        confidence = "high"
+        
+        # LG 공식몰 실패 시 네이버 Fallback
+        if not official:
+            naver_adapter = NaverStoreAdapter(brand="LG전자")
+            official = await naver_adapter.fetch(model_name)
+            source = "naver_store"
+            confidence = "medium"
     else:
-        adapter = NaverStoreAdapter(brand=brand)
-        official = await adapter.fetch(model_name)
+        # 기타 브랜드는 네이버 스토어 우선
+        naver_adapter = NaverStoreAdapter(brand=brand)
+        official = await naver_adapter.fetch(model_name)
+        source = "naver_store"
+        confidence = "medium"
 
     if not official:
         return {
             "status":         VerifyStatus.UNVERIFIED,
+            "source":         "none",
+            "confidence":     "low",
             "corrected_spec": danawa_spec.copy(),
             "diffs":          {},
         }
 
-    key_map = _get_key_map(category)
     diffs = _diff_specs(danawa_spec, official, key_map)
     corrected_spec = _apply_diffs(danawa_spec, diffs)
-    status = VerifyStatus.CORRECTED if diffs else VerifyStatus.VERIFIED
+    
+    # 소스에 따른 상태 결정
+    if source == "naver_store":
+        status = VerifyStatus.CORRECTED_NAVER if diffs else VerifyStatus.VERIFIED_NAVER
+    else:
+        status = VerifyStatus.CORRECTED if diffs else VerifyStatus.VERIFIED
 
     return {
         "status":         status,
+        "source":         source,
+        "confidence":     confidence,
         "corrected_spec": corrected_spec,
         "diffs":          diffs,
     }

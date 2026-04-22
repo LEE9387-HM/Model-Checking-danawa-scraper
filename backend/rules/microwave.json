@@ -2,14 +2,48 @@
   "category": "microwave",
   "display_name": "전자레인지",
   "danawa_category_id": "113",
-  "primary_specs": ["capacity_l", "microwave_type"],
-  "meta_specs": ["release_year", "brand", "price", "review_count"],
+  "primary_specs": [
+    "capacity_l",
+    "microwave_type",
+    "release_year"
+  ],
+  "meta_specs": [
+    "brand",
+    "price",
+    "review_count"
+  ],
   "grading_specs": {
-    "output_w":      { "weight": 0.35, "direction": "higher_better", "unit": "W" },
-    "mode_count":    { "weight": 0.30, "direction": "higher_better", "unit": "개" },
-    "inner_coating": { "weight": 0.20, "direction": "higher_better", "levels": { "기본": 3, "스테인리스": 7, "세라믹": 10 } },
-    "energy_rating": { "weight": 0.15, "direction": "lower_better", "levels": { "1등급": 10, "2등급": 7, "3등급": 5, "4등급": 3, "5등급": 1 } }
+    "output_w": {
+      "weight": 0.35,
+      "direction": "higher_better",
+      "unit": "W"
+    },
+    "mode_count": {
+      "weight": 0.3,
+      "direction": "higher_better",
+      "unit": "개"
+    },
+    "inner_coating": {
+      "weight": 0.2,
+      "direction": "higher_better",
+      "levels": {
+        "기본": 3,
+        "스테인리스": 7,
+        "세라믹": 10
+      }
+    },
+    "energy_rating": {
+      "weight": 0.15,
+      "direction": "lower_better",
+      "levels": {
+        "1등급": 10,
+        "2등급": 7,
+        "3등급": 5,
+        "4등급": 3,
+        "5등급": 1
+      }
+    }
   },
-  "year_filter_range": 2,
+  "year_filter_range": 0,
   "notes": "가중치 합계: 1.00"
 }

@@ -119,11 +119,13 @@ class BatchProcessor:
                 print(f"[batch] 워커 오류: {e}")
 
     async def _process_job(self, job_id: str, items: list[ModelItem]):
-        """단일 Job 처리 — 크롤링 → 검증 → 채점 → 체크포인트 저장."""
-        from crawler import fetch_model_spec
+        """단일 Job 처리 — 크롤링 → 검증 → 채점 → 경쟁사 분석 → 체크포인트 저장."""
+        from crawler import fetch_model_spec, fetch_competitors, get_category_url
         from verifier import verify_samsung
-        from scoring import score_model
+        from scoring import score_model, load_rules, score_pool
         from spec_parser import parse_spec
+        from similarity import filter_and_rank
+        from price_intelligence import get_price_adequacy_verdict
 
         cp = self._jobs[job_id]
         cp.status = JobStatus.RUNNING
@@ -141,38 +143,100 @@ class BatchProcessor:
             cp.save()
 
             try:
-                # Step 1: 크롤링
+                # 1) 삼성 모델 크롤링 및 파싱
                 raw_data = await fetch_model_spec(item.model_name)
                 if "error" in raw_data:
                     raise ValueError(raw_data["error"])
 
                 category = item.category_hint or "tv"
+                rules = load_rules(category)
                 spec = parse_spec(category, raw_data["raw_spec"])
 
-                # Step 2: 삼성 공식몰 검증
+                # 2) 삼성 공식몰 검증 (Waterfall)
                 verify_result = await verify_samsung(item.model_name, spec, category)
-                final_spec = verify_result["corrected_spec"]
+                final_samsung_spec = verify_result["corrected_spec"]
 
-                # Step 3: 채점
-                score_result = score_model(category, final_spec)
+                # 3) 삼성 모델 채점
+                samsung_score_res = score_model(category, final_samsung_spec)
+                s_total_score = samsung_score_res["total_score"]
 
+                # 4) [신규] 경쟁사 탐색 및 분석 (CPI/Verdict)
+                # 동일 출시연도 모델 위주로 탐색
+                s_release_year = final_samsung_spec.get("release_year")
+                cat_url = get_category_url(category)
+                
+                # 다나와에서 경쟁사 검색
+                comps_raw = await fetch_competitors(
+                    category_url=cat_url,
+                    primary_spec_filter={}, # 필요 시 확장
+                    exclude_brand="삼성전자",
+                    max_count=10,
+                    samsung_release_year=s_release_year
+                )
+                
+                top_comp_data = {}
+                if comps_raw:
+                    # 경쟁사 스펙 파싱 및 채점 (삼성과 동일 풀)
+                    parsed_comps = []
+                    for c in comps_raw:
+                        c_spec = parse_spec(category, c["raw_spec"])
+                        parsed_comps.append({**c, "spec": c_spec})
+                    
+                    all_models = [{"spec": final_samsung_spec}] + parsed_comps
+                    scored_all = score_pool(category, all_models)
+                    
+                    # 랭킹 산출 (CPI 포함)
+                    ranked_comps = filter_and_rank(
+                        samsung_data={
+                            "spec": final_samsung_spec,
+                            "price": raw_data.get("price", 0),
+                            "score": {"total_score": s_total_score}
+                        },
+                        competitors=scored_all[1:],
+                        rules=rules,
+                        similarity_threshold=0.0, # 배치 시에는 가장 유사한 것 1개라도 무조건 찾기
+                        top_n=1
+                    )
+                    
+                    if ranked_comps:
+                        top_c = ranked_comps[0]
+                        analysis = get_price_adequacy_verdict(
+                            cpi=top_c["cpi"],
+                            score_diff=s_total_score - top_c["score"]["total_score"]
+                        )
+                        top_comp_data = {
+                            "comp_model":  top_c["model_name"],
+                            "comp_price":  top_c["price"],
+                            "comp_score":  top_c["score"]["total_score"],
+                            "comp_sim":    top_c["similarity"],
+                            "cpi":         top_c["cpi"],
+                            "verdict":     analysis["verdict"],
+                            "verdict_msg": analysis["reason"]
+                        }
+
+                # CSV 행 구성
                 row: dict = {
                     "model_name":   item.model_name,
                     "category":     category,
                     "brand":        raw_data.get("brand", ""),
                     "price":        raw_data.get("price", 0),
-                    "release_year": final_spec.get("release_year", ""),
+                    "release_year": final_samsung_spec.get("release_year", ""),
                     "review_count": raw_data.get("review_count", 0),
-                    "total_score":  score_result["total_score"],
+                    "total_score":  s_total_score,
                     "verification": verify_result["status"],
-                    "diffs":        json.dumps(verify_result.get("diffs", {}), ensure_ascii=False),
+                    "verify_src":   verify_result.get("source", ""),
                 }
-                # breakdown 열 추가 (spec_항목명)
-                for k, v in score_result.get("breakdown", {}).items():
+                
+                # 경쟁사 분석 결과 병합
+                row.update(top_comp_data)
+                
+                # 스펙 점수 상세 추가
+                for k, v in samsung_score_res.get("breakdown", {}).items():
                     row[f"score_{k}"] = v
 
                 cp.results.append(row)
-                print(f"[batch] 완료 ({cp.processed + 1}/{cp.total}): {item.model_name} → {score_result['total_score']}점")
+                verdict_str = top_comp_data.get('verdict', 'N/A')
+                print(f"[batch] ({cp.processed + 1}/{cp.total}) {item.model_name}: {s_total_score}점 | Verdict: {verdict_str}")
 
             except Exception as e:
                 cp.errors.append({

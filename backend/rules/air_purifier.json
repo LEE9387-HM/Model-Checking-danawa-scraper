@@ -2,15 +2,51 @@
   "category": "air_purifier",
   "display_name": "공기청정기",
   "danawa_category_id": "110",
-  "primary_specs": ["coverage_sqm", "filter_type"],
-  "meta_specs": ["release_year", "brand", "price", "review_count"],
+  "primary_specs": [
+    "coverage_sqm",
+    "filter_type",
+    "release_year"
+  ],
+  "meta_specs": [
+    "brand",
+    "price",
+    "review_count"
+  ],
   "grading_specs": {
-    "cadr":             { "weight": 0.30, "direction": "higher_better", "unit": "m³/h" },
-    "noise_level":      { "weight": 0.20, "direction": "lower_better", "unit": "dB" },
-    "sensor_type":      { "weight": 0.20, "direction": "higher_better", "levels": { "기본": 3, "PM2.5": 7, "멀티센서": 10 } },
-    "filter_lifespan_months": { "weight": 0.15, "direction": "higher_better", "unit": "개월" },
-    "smart_features":   { "weight": 0.15, "direction": "higher_better", "levels": { "미지원": 0, "기본": 5, "AI": 10 } }
+    "cadr": {
+      "weight": 0.3,
+      "direction": "higher_better",
+      "unit": "m³/h"
+    },
+    "noise_level": {
+      "weight": 0.2,
+      "direction": "lower_better",
+      "unit": "dB"
+    },
+    "sensor_type": {
+      "weight": 0.2,
+      "direction": "higher_better",
+      "levels": {
+        "기본": 3,
+        "PM2.5": 7,
+        "멀티센서": 10
+      }
+    },
+    "filter_lifespan_months": {
+      "weight": 0.15,
+      "direction": "higher_better",
+      "unit": "개월"
+    },
+    "smart_features": {
+      "weight": 0.15,
+      "direction": "higher_better",
+      "levels": {
+        "미지원": 0,
+        "기본": 5,
+        "AI": 10
+      }
+    }
   },
-  "year_filter_range": 2,
+  "year_filter_range": 0,
   "notes": "가중치 합계: 1.00"
 }

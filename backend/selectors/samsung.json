@@ -1,40 +1,39 @@
 {
   "base_url": "https://www.samsung.com/sec",
-  "search_url": "https://www.samsung.com/sec/search/?searchvalue={model}",
+  "search_url": "https://www.samsung.com/sec/search/?searchBy={model}",
   "selectors": {
     "search_result": [
+      ".aisearch-product__name a",
+      ".aisearch-product__name",
       ".sc-g-product-card__info-title a",
       ".sc-product-card__title a",
-      ".result-item .result-name a",
-      ".search-results-list .result-item a",
-      ".product-card a",
-      "[data-component='SearchResultItem'] a",
-      ".search-result-item a"
+      ".product-card a"
     ],
     "spec_section_trigger": [
+      "a[href='#specification']",
       "#acompGoodsFeatures + a",
       ".revamp-scrollspy-link:nth-of-type(2)",
-      "a[href='#specification']",
-      "#specification",
-      ".tab-menu a[data-section='specification']",
-      "button[data-tab='specification']",
-      "[data-panel='specification']"
+      "button[data-tab='specification']"
     ],
     "spec_label": [
       ".v-spec-details__label",
+      ".spec-list__title",
       ".specification-title",
-      ".spec-name",
-      ".specification-item .title",
-      ".spec-group .spec-item .name",
+      ".spec_title",
       "dt"
     ],
     "spec_value": [
       ".v-spec-details__value",
+      ".spec-list__description",
       ".specification-value",
       ".spec-value",
-      ".specification-item .desc",
-      ".spec-group .spec-item .value",
+      ".spec_desc",
       "dd"
+    ],
+    "price": [
+      ".pd-buying-price__price span:first-child",
+      "p.price-after",
+      ".pd-buying-price__price"
     ]
   }
 }
