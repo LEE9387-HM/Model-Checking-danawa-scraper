@@ -5,11 +5,41 @@
 
 const API = '';  // 같은 오리진에서 서빙
 const API_BASE = location.hostname === 'localhost' ? '' : 'https://danawa-api.fortume9388.workers.dev';
+const IS_CLOUD = API_BASE !== '';
+
+/* ─── 클라우드 환경 초기화 ────────────────────────── */
+if (IS_CLOUD) {
+  document.addEventListener('DOMContentLoaded', () => {
+    // 상단 안내 배너 삽입
+    const banner = document.createElement('div');
+    banner.style.cssText = [
+      'background:#1B4FD8', 'color:#fff', 'text-align:center',
+      'padding:8px 16px', 'font-size:13px', 'letter-spacing:.02em',
+      'position:sticky', 'top:0', 'z-index:999'
+    ].join(';');
+    banner.textContent = '☁️ 클라우드 환경 — DB 즉시 분석 모드만 사용 가능합니다. 실시간 크롤링·CSV 배치는 로컬 실행 전용입니다.';
+    document.body.prepend(banner);
+
+    // 실시간/배치 모드 버튼 비활성화
+    ['mode-live', 'mode-batch'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.disabled = true;
+        btn.title = '로컬 실행 전용 기능입니다';
+        btn.style.opacity = '0.4';
+        btn.style.cursor = 'not-allowed';
+      }
+    });
+  });
+}
 
 /* ─── 모드 상태 ──────────────────────────────────── */
 let _currentMode = 'db';  // 'db' | 'live'
 
 function switchMode(mode) {
+  // 클라우드 환경에서는 db 모드만 허용
+  if (IS_CLOUD && mode !== 'db') return;
+
   _currentMode = mode;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`mode-${mode}`).classList.add('active');

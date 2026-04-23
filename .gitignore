@@ -32,3 +32,20 @@ test-results/
 # 환경 변수
 .env
 .env.*
+
+# Cloudflare
+.wrangler/
+cloudflare/worker/.wrangler/
+
+# Scripts temp
+scripts/*.db
+scripts/*.db-journal
+scripts/d1_import.sql
+
+# gstack
+.gstack/
+
+# DB temp
+*.db-journal
+backend/tv_db/*.tmp
+backend/tv_db/tv_products.testcopy.db

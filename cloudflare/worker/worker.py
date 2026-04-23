@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 import math
-from js import Headers, Request, Response, URL
+from js import Headers, Request, Response, URL, caches
 
 
 DEPRECIATION_RATE = 0.85
@@ -446,6 +446,21 @@ async def handle_tv_match(request: Request, env) -> Response:
     )
 
 
+async def cached_tv_match(request: Request, env) -> Response:
+    """GET /api/tv/match?model_name=... 에 Cache API 6시간 캐싱 적용."""
+    cache = await caches.open("tv-match-v1")
+    cached = await cache.match(request)
+    if cached:
+        return cached
+    response = await handle_tv_match(request, env)
+    if response.status == 200:
+        cloned = response.clone()
+        h = _make_headers({"Content-Type": "application/json", "Cache-Control": "public, max-age=21600"})
+        cached_response = Response.new(await cloned.text(), status=200, headers=h)
+        await cache.put(request, cached_response)
+    return response
+
+
 async def on_fetch(request: Request, env) -> Response:
     parsed = URL.new(request.url)
     path = parsed.pathname
@@ -458,9 +473,10 @@ async def on_fetch(request: Request, env) -> Response:
             return await handle_ping(env)
         if path == "/api/tv/models" and method == "GET":
             return await handle_tv_models(request, env)
-        if path == "/api/tv/match" and method in {"GET", "POST"}:
+        if path == "/api/tv/match" and method == "GET":
+            return await cached_tv_match(request, env)
+        if path == "/api/tv/match" and method == "POST":
             return await handle_tv_match(request, env)
         return json_response({"detail": "Not Found"}, status=404)
-    except Exception as exc:
-        import traceback
-        return json_response({"detail": str(exc), "trace": traceback.format_exc()}, status=500)
+    except Exception:
+        return json_response({"detail": "Internal Server Error"}, status=500)

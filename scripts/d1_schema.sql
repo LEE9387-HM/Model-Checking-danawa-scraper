@@ -32,3 +32,7 @@ CREATE TABLE IF NOT EXISTS tv_price_history (
     source TEXT NOT NULL DEFAULT 'danawa',
     FOREIGN KEY(product_id) REFERENCES tv_products(id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_tv_size_res_year ON tv_products(screen_size_inch, resolution, release_year);
+CREATE INDEX IF NOT EXISTS idx_tv_panel ON tv_products(panel_type);
+CREATE INDEX IF NOT EXISTS idx_tv_manufacturer ON tv_products(manufacturer, brand);
