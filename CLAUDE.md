@@ -270,9 +270,65 @@ uvicorn main:app --reload --port 8000
 
 ---
 
+## 🌐 배포 현황 (Cloudflare)
+
+> 배포일: 2026-04-23
+
+| 구성 요소 | URL | 상태 |
+|----------|-----|------|
+| Frontend (Pages) | https://danawa-scraper.pages.dev | 라이브 |
+| API Worker | https://danawa-api.fortume9388.workers.dev | 라이브 |
+| D1 Database | danawa-tv (APAC 리전) | 1,980개 TV 제품 |
+
+### 배포 아키텍처
+
+```
+사용자
+  └── Cloudflare Pages (frontend/)
+        └── API_BASE 분기
+              ├── localhost → FastAPI (로컬 개발)
+              └── production → Cloudflare Python Worker
+                                  └── D1 (SQLite 호환 DB)
+```
+
+### Cloudflare 재배포 명령
+
+```bash
+# Worker 재배포
+cd cloudflare/worker
+npx wrangler deploy
+
+# Pages 재배포
+cd C:\WorkSpace\Coding\코딩\danawa-scraper
+npx wrangler pages deploy frontend --project-name danawa-scraper --branch main --commit-dirty=true
+
+# D1 스키마 적용 (초기화 시)
+npx wrangler d1 execute danawa-tv --file=scripts/d1_schema.sql --remote
+
+# D1 데이터 임포트 (월간 갱신 시)
+python scripts/compute_scores.py --db backend/tv_db/tv_products.db
+python scripts/export_to_d1.py --db backend/tv_db/tv_products.db --out scripts/d1_import.sql
+npx wrangler d1 execute danawa-tv --file=scripts/d1_import.sql --remote
+```
+
+### Cloudflare Worker API 엔드포인트 (DB 모드 전용)
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| GET | `/api/ping` | 헬스체크 |
+| GET | `/api/tv/models` | 삼성 TV 모델 목록 (size/resolution/year 필터) |
+| POST | `/api/tv/match` | TV DB 매칭 — 감가상각 기반 경쟁사 분석 |
+
+### 월간 자동 갱신
+
+`.github/workflows/monthly-crawl.yml` — 매월 1일 02:00 UTC
+- Playwright 크롤링 → score 계산 → D1 업데이트 → DB 커밋
+
+---
+
 ## ✅ 진척 현황
 
-> 마지막 업데이트: 2026-04-16
+> 마지막 업데이트: 2026-04-23
 
 ### Phase 1 — 프로젝트 셋업 + TV 카테고리 파이프라인 ✅ 완료
 - [x] 프로젝트 폴더 구조 생성
@@ -355,6 +411,29 @@ uvicorn main:app --reload --port 8000
 - [x] **세그먼트 정규화** — `similarity.py`에서 주요 스펙(Primary Specs) 불일치 모델 CPI 분석 제외/페널티 적용
 - [x] **배치 처리 확장** — CSV 결과에 CPI, Verdict, VFM, 검증 소스 정보 일괄 포함
 
+### Phase 9 — TV DB 노말라이제이션 ✅ 완료 (2026-04-23, 외부 에이전트)
+- [x] `backend/tv_db/re_normalize.py` — approved_rule_count=8, remaining_conflict_rule_count=0
+- [x] `pytest tests/test_tv_db_renormalize.py -q` → 20 passed
+- [x] tv_products.db 노말라이제이션 write-back 완료 (1,980개 제품)
+
+### Phase 10 — Cloudflare 배포 ✅ 완료 (2026-04-23)
+- [x] **설계** — Cloudflare Pages + D1 + Python Worker 아키텍처 확정
+  - 사내망 차단 없음 (HF Spaces/Render 대비 Cloudflare 선택 이유)
+  - Playwright 크롤링은 GitHub Actions 월 1회 cron으로 분리
+- [x] **scripts/d1_schema.sql** — D1 DDL (score_total, score_breakdown 컬럼 추가)
+- [x] **scripts/compute_scores.py** — 전체 제품 score 사전 계산 (pandas/sklearn → D1 저장)
+- [x] **scripts/export_to_d1.py** — SQLite → D1 INSERT SQL 변환 (3,968행)
+- [x] **cloudflare/worker/worker.py** — Python Worker 구현
+  - 순수 Python cosine_sim, depreciation, verdict 로직 (pandas/sklearn 제거)
+  - D1 바인딩 `DB`, JsProxy → `.to_py()` 변환 처리
+  - CORS preflight (OPTIONS) 대응
+- [x] **cloudflare/worker/wrangler.toml** — D1 database_id: `76ae4034-2a96-42ee-92b3-98e8929c2c6c`
+- [x] **cloudflare/pages/wrangler.toml** — Pages 배포 설정
+- [x] **frontend/app.js** — API_BASE 분기 (localhost vs Worker URL)
+- [x] **.github/workflows/monthly-crawl.yml** — 월간 크롤링 자동화
+- [x] **D1 데이터 임포트** — 1,980개 TV 제품 + 1,988개 가격 이력 업로드 완료
+- [x] **Worker 배포 검증** — `/api/ping`, `/api/tv/models`, `/api/tv/match` 전부 정상 응답
+
 ---
 
 ## 📝 작업 로그
@@ -364,3 +443,6 @@ uvicorn main:app --reload --port 8000
 | 2026-04-16 | Phase 8 | CPI(경쟁가격지수) 7단계 판정 로직 및 동일 연도/세그먼트 엄격 매칭 구현 |
 | 2026-04-16 | Phase 8 | 네이버 브랜드스토어 Waterfall 검증 패턴 도입 (삼성/LG/경쟁사 공통) |
 | 2026-04-16 | Phase 8 | batch_processor.py 개선 — CSV 결과에 가격 지능 분석 데이터 전수 포함 |
+| 2026-04-23 | Phase 9 | TV DB 노말라이제이션 write-back 완료 (외부 에이전트) |
+| 2026-04-23 | Phase 10 | Cloudflare Pages + D1 + Python Worker 배포 완료 |
+| 2026-04-23 | Phase 10 | GitHub Actions 월간 크롤링 자동화 설정 |

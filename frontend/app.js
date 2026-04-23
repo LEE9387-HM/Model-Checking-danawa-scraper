@@ -4,6 +4,7 @@
    ═══════════════════════════════════════════════ */
 
 const API = '';  // 같은 오리진에서 서빙
+const API_BASE = location.hostname === 'localhost' ? '' : 'https://danawa-api.fortume9388.workers.dev';
 
 /* ─── 모드 상태 ──────────────────────────────────── */
 let _currentMode = 'db';  // 'db' | 'live'
@@ -476,7 +477,7 @@ let _dbFilters = { sizes: [], resolutions: [], years: [] };
 
 async function loadDbFilters() {
   try {
-    const data = await fetch(`${API}/api/tv/models`).then(r => r.json());
+    const data = await fetch(API_BASE + '/api/tv/models').then(r => r.json());
     _dbFilters = data.filters || { sizes: [], resolutions: [], years: [] };
 
     const sizeEl = document.getElementById('filter-size');
@@ -520,7 +521,7 @@ async function onFilterChange() {
   if (year)       params.append('year', year);
 
   try {
-    const data = await fetch(`${API}/api/tv/models?${params}`).then(r => r.json());
+    const data = await fetch(API_BASE + '/api/tv/models?' + params).then(r => r.json());
     await refreshModelList(data.models || []);
   } catch (e) {
     console.warn('[필터 적용 실패]', e);
@@ -565,7 +566,7 @@ async function startDbAnalysis() {
   document.getElementById('btn-db-analyze').querySelector('.btn-text').textContent = '분석 중…';
 
   try {
-    const result = await fetch(`${API}/api/tv/match`, {
+    const result = await fetch(API_BASE + '/api/tv/match', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model_name: modelName }),

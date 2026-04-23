@@ -1,0 +1,5 @@
+name = "danawa-scraper"
+pages_build_output_dir = "../../frontend"
+
+[env.production]
+vars = { WORKER_URL = "https://danawa-api.workers.dev" }
